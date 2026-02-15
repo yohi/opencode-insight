@@ -1,0 +1,62 @@
+$ bun x --bun solid-start dev
+ solid-start dev
+ version  0.3.11
+ adapter  bun
+You are using Node.js 22.6.0. Vite requires Node.js version 20.19+ or 22.12+. Please upgrade your Node.js version.
+
+  VITE v7.3.1  ready in 1006 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+  ➜  Inspect: http://localhost:5173/__inspect/
+
+  ➜  Page Routes:
+     ┌─ http://localhost:5173/
+     ├─ http://localhost:5173/raw-data/
+     ├─ http://localhost:5173/agent-monitor/
+     ├─ http://localhost:5173/sessions/
+     ├─ http://localhost:5173/sessions/:id
+     └─ http://localhost:5173/settings/
+
+  ➜  API Routes:
+     ┌─  http://localhost:5173/api/sessions GET
+     ├─  http://localhost:5173/api/settings GET
+     ├─  http://localhost:5173/api/raw-data GET
+     └─  http://localhost:5173/api/sessions/:id GET
+
+GET http://localhost:5173/sessions/sess_001
+Using bun:sqlite
+12:00:23 PM [vite] (client) ✨ new dependencies optimized: drizzle-orm, drizzle-orm/sqlite-core
+12:00:23 PM [vite] (client) ✨ optimized dependencies changed. reloading
+GET http://localhost:5173/sessions/sess_001
+GET http://localhost:5173/
+GET http://localhost:5173/sessions/sess_001
+GET http://localhost:5173/sessions/sess_001
+GET http://localhost:5173/raw-data
+12:02:27 PM [vite] (client) hmr update /src/app.css
+12:02:27 PM [vite] (ssr) page reload src/plugins/raw-data-viewer/index.tsx
+GET http://localhost:5173/raw-data
+GET http://localhost:5173/api/raw-data
+12:02:49 PM [vite] (client) hmr update /src/app.css, /src/plugins/raw-data-viewer/index.tsx
+12:02:49 PM [vite] (ssr) page reload src/plugins/raw-data-viewer/index.tsx
+GET http://localhost:5173/raw-data
+GET http://localhost:5173/api/raw-data-broken
+GET http://localhost:5173/raw-data
+GET http://localhost:5173/api/raw-data-broken
+12:03:44 PM [vite] (client) hmr update /src/app.css, /src/plugins/raw-data-viewer/index.tsx
+12:03:44 PM [vite] (ssr) page reload src/plugins/raw-data-viewer/index.tsx
+GET http://localhost:5173/raw-data
+12:04:07 PM [vite] (client) hmr update /src/app.css, /src/plugins/raw-data-viewer/index.tsx
+12:04:07 PM [vite] (ssr) page reload src/plugins/raw-data-viewer/index.tsx
+12:04:12 PM [vite] (client) hmr update /src/app.css
+12:04:12 PM [vite] (ssr) page reload src/plugins/session-viewer/detail.tsx
+GET http://localhost:5173/sessions/sess_001
+GET http://localhost:5173/api/sessions/sess_001
+GET http://localhost:5173/api/sessions/sess_001
+12:05:45 PM [vite] (client) hmr update /src/app.css, /src/plugins/session-viewer/detail.tsx
+12:05:45 PM [vite] (ssr) page reload src/plugins/session-viewer/detail.tsx
+GET http://localhost:5173/sessions/sess_001
+GET http://localhost:5173/api/sessions/sess_001
+12:06:07 PM [vite] (client) hmr update /src/app.css, /src/plugins/session-viewer/detail.tsx
+12:06:07 PM [vite] (ssr) page reload src/plugins/session-viewer/detail.tsx
+error: script "dev" was terminated by signal SIGTERM (Polite quit request)
