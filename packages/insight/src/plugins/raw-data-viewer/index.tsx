@@ -9,7 +9,7 @@ async function fetchTables() {
 
 async function fetchTableData(tableName: string) {
   if (!tableName) return [];
-  const response = await fetch(`/api/raw-data?table=${tableName}`);
+  const response = await fetch(`/api/raw-data?table=${encodeURIComponent(tableName)}`);
   if (!response.ok) throw new Error("Failed to fetch table data");
   return response.json();
 }

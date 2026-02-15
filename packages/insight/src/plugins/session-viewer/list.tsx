@@ -30,7 +30,7 @@ export default function SessionList() {
                   </div>
                   <div class="flex items-center space-x-4">
                     <span class="text-sm text-gray-400">
-                      {new Date(session.updatedAt).toLocaleString()}
+                      {new Date(typeof session.updatedAt === 'number' ? session.updatedAt * 1000 : session.updatedAt).toLocaleString()}
                     </span>
                     <Badge class={
                       session.status === "completed" ? "bg-green-100 text-green-800" :

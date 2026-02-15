@@ -15,9 +15,11 @@ export default function SettingsViewer() {
       <h1 class="text-2xl font-bold">Settings</h1>
       <Card>
         <Show when={!settings.loading} fallback={<div class="p-4">Loading settings...</div>}>
-          <pre class="bg-gray-800 text-white p-4 rounded overflow-auto">
-            <code>{settings().content}</code>
-          </pre>
+          <Show when={!settings.error} fallback={<div class="p-4 text-red-500">Failed to load settings: {settings.error?.message}</div>}>
+            <pre class="bg-gray-800 text-white p-4 rounded overflow-auto">
+              <code>{settings()?.content}</code>
+            </pre>
+          </Show>
         </Show>
       </Card>
     </div>

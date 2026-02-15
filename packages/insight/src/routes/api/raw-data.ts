@@ -20,7 +20,7 @@ export async function GET({ request }: APIEvent) {
 
   try {
     // Now safe to interpolate as we verified it against the DB schema
-    const data = rawQuery(`SELECT * FROM ${table} LIMIT 100`);
+    const data = rawQuery(`SELECT * FROM "${table.replace(/"/g, '""')}" LIMIT 100`);
     return json(data);
   } catch (error) {
     return json({ error: error.message }, { status: 400 });
