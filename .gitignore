@@ -38,6 +38,4 @@ lerna-debug.log*
 # OpenCode / SDD
 .opencode
 .kiro
-tasks/
-
-
+specs
