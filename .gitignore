@@ -36,5 +36,8 @@ lerna-debug.log*
 *.swp
 
 # OpenCode / SDD
-.opencode/state/
-.kiro/state/
+.opencode
+.kiro
+tasks/
+
+
