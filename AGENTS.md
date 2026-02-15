@@ -72,7 +72,7 @@ All commands should be run from **`packages/insight/`**.
 
 ## 5. Database
 - The app uses a local SQLite database file: `opencode.db` (created in the project root).
-- Schema definitions (if any) should be in `packages/insight/src/db/schema.ts` (or similar, check existing files).
+- Schema definitions (if any) should be in `packages/insight/src/core/schema.ts` (or similar, check existing files).
 - Use `bun run seed` to populate the database with mock data for testing.
 
 ## 6. Testing
