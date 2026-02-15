@@ -1,0 +1,14 @@
+$ bun run src/server/index.ts
+Using bun:sqlite
+Starting DB Watcher...
+Watching database directory at . for changes to opencode.db
+Starting WebSocket Server on 127.0.0.1:3001...
+Client connected
+Client disconnected
+Client connected
+Client disconnected
+Client connected
+Client disconnected
+Client connected
+Client disconnected
+error: script "start:server" was terminated by signal SIGTERM (Polite quit request)

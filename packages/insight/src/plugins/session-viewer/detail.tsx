@@ -38,7 +38,7 @@ export default function SessionDetail() {
                       {msg.content}
                     </div>
                     <div class="text-xs text-gray-400 mt-2 text-right">
-                      {new Date(msg.timestamp).toLocaleTimeString()}
+                      {new Date(typeof msg.timestamp === 'number' ? msg.timestamp * 1000 : msg.timestamp).toLocaleTimeString()}
                     </div>
                   </Card>
                 </div>
