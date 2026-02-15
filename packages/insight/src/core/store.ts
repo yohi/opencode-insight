@@ -1,5 +1,4 @@
 import { createStore } from "solid-js/store";
-import { onCleanup } from "solid-js";
 
 export const [store, setStore] = createStore({
   logs: [] as string[],
@@ -38,19 +37,22 @@ export function connectWebSocket() {
     }
   };
 
+  ws.onerror = (event) => {
+    console.error("WebSocket error:", event);
+    setStore("status", "error");
+    // Also surface the error in logs so it's visible in the UI if logs are shown
+    setStore("logs", (logs) => [...logs, "WebSocket connection error occurred."]);
+  };
+
   ws.onclose = () => {
     setStore("status", "disconnected");
     ws = null;
   };
+}
 
-  onCleanup(() => {
-    // Only close if unmounting the root component that called this,
-    // but here we want persistent connection.
-    // Usually onCleanup runs when component unmounts.
-    // If called in Layout, it unmounts only on full reload.
-    if (ws) {
-      ws.close();
-      ws = null;
-    }
-  });
+export function disconnect() {
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
 }
