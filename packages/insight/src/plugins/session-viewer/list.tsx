@@ -1,15 +1,30 @@
 import { createResource, For, Show } from "solid-js";
 import { A } from "solid-start";
-import { Badge, Card, Input } from "~/mocks/ui";
+import { Badge, Card, Input } from "~/core/ui-kit";
+import { store, setStore } from "~/core/store";
 
 async function fetchSessions() {
   const response = await fetch("/api/sessions");
   if (!response.ok) throw new Error("Failed to fetch sessions");
-  return response.json();
+  const list = await response.json();
+  
+  // Update store with fetched sessions
+  list.forEach((s: any) => {
+    setStore("sessions", s.id, (prev) => ({ ...prev, ...s }));
+  });
+  
+  return list;
 }
 
 export default function SessionList() {
-  const [sessions] = createResource(fetchSessions);
+  const [resource] = createResource(fetchSessions);
+
+  // Compute sorted sessions from store
+  const sessions = () => Object.values(store.sessions).sort((a, b) => {
+     const timeA = new Date(typeof a.updatedAt === 'number' ? a.updatedAt * 1000 : a.updatedAt || 0).getTime();
+     const timeB = new Date(typeof b.updatedAt === 'number' ? b.updatedAt * 1000 : b.updatedAt || 0).getTime();
+     return timeB - timeA;
+  });
 
   return (
     <div class="space-y-4">
@@ -18,7 +33,7 @@ export default function SessionList() {
         <Input placeholder="Search sessions..." class="w-64" />
       </div>
 
-      <Show when={!sessions.loading} fallback={<div class="p-4">Loading sessions...</div>}>
+      <Show when={!resource.loading} fallback={<div class="p-4">Loading sessions...</div>}>
         <div class="space-y-2">
           <For each={sessions()}>
             {(session: any) => (
