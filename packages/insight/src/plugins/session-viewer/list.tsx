@@ -94,7 +94,7 @@ export default function SessionList() {
            <div class="text-gray-500">Loading sessions...</div>
         </Show>
         
-        <Show when={!isLoading() && hasMore()}>
+        <Show when={!sessionsData.error && !isLoading() && hasMore()}>
             <button 
                 onClick={loadMore}
                 class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
@@ -109,7 +109,7 @@ export default function SessionList() {
              </button>
         </Show>
 
-        <Show when={!isLoading() && !hasMore() && sessions().length > 0}>
+        <Show when={!sessionsData.error && !isLoading() && !hasMore() && sessions().length > 0}>
             <div class="text-gray-400 text-sm">No more sessions</div>
         </Show>
       </div>
