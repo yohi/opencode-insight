@@ -83,7 +83,7 @@ function handleMessage(data: WebSocketMessage) {
       setStore("sessions", data.sessionId, (prev) => ({
         ...(prev || {}),
         ...data.session,
-        messages: prev?.messages || data.session?.messages || [],
+        messages: data.session.messages || prev?.messages || [],
       }));
       break;
 
