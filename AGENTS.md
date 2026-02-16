@@ -99,6 +99,8 @@ To fully run the app in development, you need **two terminal processes**:
 2. Ensure state changes are reactive and propagate to components.
 
 ### Database Changes
+**Note**: All file paths in this section are relative to the `packages/insight/` directory.
+
 1. If modifying the schema, ensure Drizzle definitions in `src/core/schema.ts` are updated.
 2. Update seed scripts (`scripts/seed-db.ts`) if necessary to reflect schema changes.
 
