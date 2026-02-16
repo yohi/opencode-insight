@@ -22,14 +22,14 @@ graph TD
 ## コンポーネント
 
 - **Dockerfile**: `packages/insight/Dockerfile`
-  - Base Image: `oven/bun:1`
+  - Base Image: `oven/bun:1.3.9`
   - Multi-stage build (install -> prerelease -> release)
 - **Compose**: `packages/insight/compose.yaml`
   - Service: `app`
   - Ports: `3000:3000`, `3001:3001`
   - Volumes: `sqlite_data`, Bind Mount (`./:/app`)
 - **Devcontainer**: `packages/insight/.devcontainer/devcontainer.json`
-  - Image: `oven/bun:1`
+  - Image: `oven/bun:1.3.9`
   - Features: Git
   - Extensions: Bun, Docker, Prettier
 
