@@ -9,7 +9,15 @@ async function fetchSessionDetails(id: string) {
   const response = await fetch(`/api/sessions/${id}`);
   if (!response.ok) throw new Error("Failed to fetch session details");
   const data = await response.json();
-  setStore("sessions", id, data);
+  
+  // Merge with existing data in store to preserve real-time updates
+  setStore("sessions", id, (prev) => ({
+    ...(prev || {}),
+    ...data,
+    // Preserve messages if they were already updating via WebSocket
+    messages: data.messages || (prev?.messages || [])
+  }));
+  
   return data;
 }
 

@@ -30,7 +30,7 @@ This project focused on the refactoring and modernization of **OpenCode Insight*
 - **Build Success**: The project builds successfully using `bun run build`.
 
 ## Verification Results
-- **Build Status**: ✅ PASS (`solid-start build` succeeded).
+- **Build Status**: ✅ PASS (`bun run build` succeeded).
 - **Type Safety**: ✅ PASS (No critical TypeScript errors in core/plugin paths).
 - **Registry Check**: ✅ Verified (`registry.ts` correctly exports `sessionViewer`, `agentMonitor`, etc.).
 

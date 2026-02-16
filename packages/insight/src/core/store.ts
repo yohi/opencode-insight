@@ -95,13 +95,19 @@ export function connectWebSocket() {
       } else if (data.type === "MESSAGE_ADDED") {
         console.log("Message added:", data);
         if (data.sessionId && data.message) {
-             setStore("sessions", data.sessionId, "messages", (msgs) => [...(msgs || []), data.message]);
+          setStore("sessions", data.sessionId, (prev) => {
+            const current = prev || { id: data.sessionId, title: "Loading...", messages: [] };
+            return { ...current, messages: [...(current.messages || []), data.message] };
+          });
         }
       } else if (data.type === "USAGE_UPDATED") {
-         console.log("Usage updated:", data);
-         if (data.sessionId && data.usage) {
-             setStore("sessions", data.sessionId, "usage", reconcile(data.usage));
-         }
+        console.log("Usage updated:", data);
+        if (data.sessionId && data.usage) {
+          setStore("sessions", data.sessionId, (prev) => {
+            const current = prev || { id: data.sessionId, title: "Loading...", messages: [] };
+            return { ...current, usage: data.usage };
+          });
+        }
       }
     } catch (e) {
       console.error("Failed to parse message:", e);
