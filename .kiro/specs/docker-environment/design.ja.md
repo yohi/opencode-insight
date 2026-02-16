@@ -1,10 +1,10 @@
 # Design: docker-environment
 
-## Architecture Overview
+## アーキテクチャ概要
 
-Migrate the execution environment of the existing application (`packages/insight`) to a Bun-based Docker container (Devcontainer for development and Dockerfile for production).
+既存のアプリケーション（packages/insight）の実行環境を、BunベースのDockerコンテナ（開発用Devcontainerおよび本番用Dockerfile）に完全移行する。
 
-## Component Design
+## コンポーネント設計
 
 ### Mermaid Diagram
 
@@ -19,7 +19,7 @@ graph TD
     Docker -->|Volume Mount| DB
 ```
 
-## Components
+## コンポーネント
 
 - **Dockerfile**: `packages/insight/Dockerfile`
   - Base Image: `oven/bun:1.3.9`
@@ -35,7 +35,7 @@ graph TD
 
 ## API Endpoints
 
-- No changes (use existing endpoints as is)
+- 変更なし（既存のエンドポイントをそのまま利用）
 
 ## Component Structure
 
@@ -48,15 +48,15 @@ graph TD
 
 ## Database Schema
 
-- **Volume**: `sqlite_data` (Persistence)
-  - Mount to `/app/data` (or appropriate path) inside container to persist `opencode.db`.
-  - Application DB connection settings may need adjustment (e.g., specifying path via environment variable).
+- **Volume**: `sqlite_data` (永続化用)
+  - コンテナ内の `/app/data` (または適切なパス) にマウントし、ここに `opencode.db` を配置・永続化する。
+  - アプリケーション側のDB接続設定もこれに合わせて調整が必要になる可能性がある（環境変数でパスを指定など）。
 
-## Data Structures
+## データ構造
 
-- None
+- 特になし
 
-## Dependencies
+## 依存関係
 
 - Docker Engine
 - Docker Compose

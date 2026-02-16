@@ -1,32 +1,32 @@
 # Requirements: docker-environment
 
-## 概要
+## Overview
 
-既存のアプリケーション（packages/insight）の実行環境を、BunベースのDockerコンテナ（開発用Devcontainerおよび本番用Dockerfile）に完全移行する。
+Migrate the execution environment of the existing application (`packages/insight`) to a Bun-based Docker container (Devcontainer for development and Dockerfile for production).
 
-## 要件定義 (EARS)
+## Requirements (EARS)
 
-### 機能要件
+### Functional Requirements
 
-* システムは、本番環境向けに最適化されたマルチステージビルド構成の `Dockerfile` を提供 **shall**。
+* The system **shall** provide a `Dockerfile` optimized for production with a multi-stage build configuration.
 
-* システムは、開発環境と本番環境のオーケストレーションを行う `compose.yaml` (docker-compose.yml ではなく) を提供 **shall**。
+* The system **shall** provide a `compose.yaml` (instead of docker-compose.yml) for orchestration of development and production environments.
 
-* システムは、SQLiteデータベースのデータを Docker Volume を使用して永続化 **shall**。
+* The system **shall** persist SQLite database data using Docker Volumes.
 
-* システムは、ホストマシンに対してポート `3000` (Frontend) および `3001` (Backend) を公開 **shall**。
+* The system **shall** expose ports `3000` (Frontend) and `3001` (Backend) to the host machine.
 
-### 技術的制約
+### Technical Constraints
 
-* システムは、ベースイメージとして **oven/bun:1.3.9** (または `oven/bun@sha256:856da45d07aeb62eb38ea3e7f9e1794c0143a4ff63efb00e6c4491b627e2a521`) を使用して構築されなければならない **must**。
+* The system **must** be built using **oven/bun:1.3.9** (or `oven/bun@sha256:856da45d07aeb62eb38ea3e7f9e1794c0143a4ff63efb00e6c4491b627e2a521`) as the base image.
 
-* 開発環境は **Devcontainer** を使用して構築され、ホスト環境への依存を排除しなければならない **must**。
+* The development environment **must** be built using **Devcontainer**, eliminating dependencies on the host environment.
 
-* ソースコードの変更は、Bind Mount を通じてコンテナ内に即座に反映（ホットリロード）されなければならない **must**。
+* Source code changes **must** be immediately reflected in the container via Bind Mount (hot reload).
 
-## 環境構築 (Devcontainer)
+## Environment Setup (Devcontainer)
 
-以下の設定で `.devcontainer/devcontainer.json` を作成してください:
+Create `.devcontainer/devcontainer.json` with the following configuration:
 
 ```json
 {
@@ -48,7 +48,7 @@
 }
 ```
 
-## テスト戦略
+## Testing Strategy
 
-* テストは **bun test** (Built-in) で実行する。
-* コマンド: `docker exec -it opencode-insight bun test` (または VS Code タスク経由)
+* Tests will be executed using **bun test** (Built-in).
+* Command: `docker exec -it opencode-insight bun test` (or via VS Code task)
