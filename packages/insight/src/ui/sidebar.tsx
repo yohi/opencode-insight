@@ -1,9 +1,10 @@
 import { A } from "solid-start";
 import { For } from "solid-js";
 import { store } from "~/core/store";
-import { plugins } from "~/plugins/registry";
+import { loadPlugins } from "~/core/plugin-loader";
 
 export default function Sidebar() {
+  const plugins = loadPlugins();
   return (
     <div class="w-64 bg-gray-900 text-white h-screen flex flex-col border-r border-gray-800">
       <div class="p-4 border-b border-gray-800">
@@ -15,7 +16,7 @@ export default function Sidebar() {
         </A>
         <For each={plugins}>
           {(plugin) => (
-            <For each={plugin.sidebarItems}>
+            <For each={plugin.sidebarItems ?? []}>
               {(item) => (
                 <A href={item.href} class="block px-4 py-2 rounded hover:bg-gray-800" activeClass="bg-gray-800">
                   {item.label}
