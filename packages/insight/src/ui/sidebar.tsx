@@ -16,7 +16,7 @@ export default function Sidebar() {
         </A>
         <For each={plugins}>
           {(plugin) => (
-            <For each={plugin.sidebarItems}>
+            <For each={plugin.sidebarItems ?? []}>
               {(item) => (
                 <A href={item.href} class="block px-4 py-2 rounded hover:bg-gray-800" activeClass="bg-gray-800">
                   {item.label}
