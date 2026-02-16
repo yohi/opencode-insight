@@ -1,5 +1,5 @@
 import { createEffect, createResource, createSignal, For, Show } from "solid-js";
-import { Card } from "~/mocks/ui";
+import { Card } from "~/core/ui-kit";
 
 async function fetchTables() {
   const response = await fetch("/api/raw-data");
@@ -33,6 +33,7 @@ export default function RawDataViewer() {
                   {(t: any) => (
                     <li>
                       <button
+                        type="button"
                         class={`w-full text-left px-2 py-1 rounded ${selectedTable() === t.name ? "bg-blue-100 text-blue-800" : "hover:bg-gray-100"}`}
                         onClick={() => setSelectedTable(t.name)}
                       >

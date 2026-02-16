@@ -1,5 +1,5 @@
 import { createResource, Show } from "solid-js";
-import { Card } from "~/mocks/ui";
+import { Card } from "~/core/ui-kit";
 
 async function fetchSettings() {
   const response = await fetch("/api/settings");
