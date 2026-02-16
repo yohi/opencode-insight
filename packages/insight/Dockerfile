@@ -29,11 +29,14 @@ RUN bun run build
 
 # copy production dependencies and source code into final image
 FROM base AS release
-COPY --from=install /temp/prod/node_modules node_modules
-COPY --from=prerelease /app/dist/ dist/
-COPY --from=prerelease /app/src/ src/
-COPY --from=prerelease /app/package.json .
-COPY --from=prerelease /app/bun.lock .
+COPY --from=install --chown=bun:bun /temp/prod/node_modules node_modules
+COPY --from=prerelease --chown=bun:bun /app/dist/ dist/
+COPY --from=prerelease --chown=bun:bun /app/src/ src/
+COPY --from=prerelease --chown=bun:bun /app/package.json .
+COPY --from=prerelease --chown=bun:bun /app/bun.lock .
+
+# Ensure data directory exists and is writable
+RUN mkdir -p /data && chown bun:bun /data
 
 # run as non-root user
 USER bun

@@ -3,20 +3,17 @@ services:
     build:
       context: packages/insight
       dockerfile: Dockerfile
-      target: prerelease
+      target: release
     image: opencode-insight:latest
     ports:
-      - "3000:3000"
-      - "3001:3001"
+      - "0:3000"
+      - "0:3001"
     environment:
       - HOST=0.0.0.0
       - PORT=3000
       - DB_PATH=/data/opencode.db
     volumes:
-      - ./:/workspace
       - sqlite_data:/data
-      - node_modules:/workspace/packages/insight/node_modules
 
 volumes:
   sqlite_data:
-  node_modules:

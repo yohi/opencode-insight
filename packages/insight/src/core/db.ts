@@ -19,6 +19,7 @@ try {
   isBun = true;
   console.log("Using bun:sqlite");
 } catch (e) {
+  console.error("Failed to load bun:sqlite:", e);
   // Fallback to better-sqlite3 (works in Node/Vite)
   console.log("bun:sqlite not found, falling back to better-sqlite3");
   const Database = require("better-sqlite3");
