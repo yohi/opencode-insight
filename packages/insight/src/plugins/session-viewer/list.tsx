@@ -1,10 +1,12 @@
-import { createResource, For, Show } from "solid-js";
+import { createResource, createSignal, For, Show } from "solid-js";
 import { A } from "solid-start";
 import { Badge, Card, Input } from "~/core/ui-kit";
 import { store, setStore } from "~/core/store";
 
-async function fetchSessions() {
-  const response = await fetch("/api/sessions");
+const LIMIT = 20;
+
+async function fetchSessions(offset: number) {
+  const response = await fetch(`/api/sessions?limit=${LIMIT}&offset=${offset}`);
   if (!response.ok) throw new Error("Failed to fetch sessions");
   const list = await response.json();
   
@@ -17,7 +19,8 @@ async function fetchSessions() {
 }
 
 export default function SessionList() {
-  const [resource] = createResource(fetchSessions);
+  const [offset, setOffset] = createSignal(0);
+  const [sessionsData] = createResource(offset, fetchSessions);
 
   // Compute sorted sessions from store
   const sessions = () => Object.values(store.sessions).sort((a, b) => {
@@ -25,6 +28,19 @@ export default function SessionList() {
      const timeB = new Date(typeof b.updatedAt === 'number' ? b.updatedAt * 1000 : b.updatedAt || 0).getTime();
      return timeB - timeA;
   });
+
+  const hasMore = () => {
+    const data = sessionsData();
+    return data && data.length === LIMIT;
+  };
+  
+  const isLoading = () => sessionsData.loading;
+
+  const loadMore = () => {
+    if (!isLoading() && hasMore()) {
+      setOffset(prev => prev + LIMIT);
+    }
+  };
 
   const formatUpdatedAt = (value: unknown) => {
     if (!value) return "Unknown";
@@ -39,41 +55,64 @@ export default function SessionList() {
         <Input placeholder="Search sessions..." class="w-64" />
       </div>
 
-      <Show when={resource.error}>
+      <Show when={sessionsData.error}>
         <div class="p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg mb-4">
           <p class="font-semibold">Error loading sessions</p>
-          <p class="text-sm">{resource.error.message}</p>
+          <p class="text-sm">{sessionsData.error.message}</p>
         </div>
       </Show>
 
-      <Show when={!resource.loading} fallback={<div class="p-4">Loading sessions...</div>}>
-        <div class="space-y-2">
-          <For each={sessions()}>
-            {(session: any) => (
-              <A href={`/sessions/${session.id}`} class="block no-underline text-inherit">
-                <Card class="hover:bg-gray-50 transition-colors cursor-pointer flex justify-between items-center">
-                  <div>
-                    <h3 class="font-semibold text-lg">{session.title || "Untitled Session"}</h3>
-                    <p class="text-sm text-gray-500">ID: {session.id}</p>
-                  </div>
-                  <div class="flex items-center space-x-4">
-                    <span class="text-sm text-gray-400">
-                      {formatUpdatedAt(session.updatedAt)}
-                    </span>
-                    <Badge class={
-                      session.status === "completed" ? "bg-green-100 text-green-800" :
-                      session.status === "error" ? "bg-red-100 text-red-800" :
-                      "bg-blue-100 text-blue-800"
-                    }>
-                      {session.status}
-                    </Badge>
-                  </div>
-                </Card>
-              </A>
-            )}
-          </For>
-        </div>
-      </Show>
+      <div class="space-y-2">
+        <For each={sessions()}>
+          {(session: any) => (
+            <A href={`/sessions/${session.id}`} class="block no-underline text-inherit">
+              <Card class="hover:bg-gray-50 transition-colors cursor-pointer flex justify-between items-center">
+                <div>
+                  <h3 class="font-semibold text-lg">{session.title || "Untitled Session"}</h3>
+                  <p class="text-sm text-gray-500">ID: {session.id}</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                  <span class="text-sm text-gray-400">
+                    {formatUpdatedAt(session.updatedAt)}
+                  </span>
+                  <Badge class={
+                    session.status === "completed" ? "bg-green-100 text-green-800" :
+                    session.status === "error" ? "bg-red-100 text-red-800" :
+                    "bg-blue-100 text-blue-800"
+                  }>
+                    {session.status}
+                  </Badge>
+                </div>
+              </Card>
+            </A>
+          )}
+        </For>
+      </div>
+
+      <div class="flex justify-center py-4">
+        <Show when={isLoading() && sessions().length === 0}>
+           <div class="text-gray-500">Loading sessions...</div>
+        </Show>
+        
+        <Show when={!isLoading() && hasMore()}>
+            <button 
+                onClick={loadMore}
+                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+                Load More
+            </button>
+        </Show>
+        
+        <Show when={isLoading() && sessions().length > 0}>
+             <button disabled class="px-4 py-2 bg-blue-400 text-white rounded opacity-75 cursor-not-allowed">
+                Loading...
+             </button>
+        </Show>
+
+        <Show when={!isLoading() && !hasMore() && sessions().length > 0}>
+            <div class="text-gray-400 text-sm">No more sessions</div>
+        </Show>
+      </div>
     </div>
   );
 }
