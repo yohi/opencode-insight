@@ -8,6 +8,7 @@ export const [store, setStore] = createStore({
   status: "disconnected",
   sessions: {} as Record<string, SessionWithDetails>,
   agents: {} as Record<string, Agent>,
+  workspacePath: null as string | null,
 });
 
 let ws: WebSocket | null = null;
@@ -89,6 +90,9 @@ function handleMessage(data: WebSocketMessage) {
 
     case "INIT":
       console.log("WebSocket initialized:", data.payload.message);
+      if (data.payload.workspacePath) {
+        setStore("workspacePath", data.payload.workspacePath);
+      }
       break;
   }
 }

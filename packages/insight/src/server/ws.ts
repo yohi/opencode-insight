@@ -86,7 +86,7 @@ export const wsHandler = {
     subscriptionsByClient.set(ws, new Set<SubscriptionTopic>());
 
     console.log("Client connected");
-    send(ws, { type: "INIT", payload: { message: "Connected to Insight" } });
+    send(ws, { type: "INIT", payload: { message: "Connected to Insight", workspacePath: undefined } });
   },
   message(ws: ServerWebSocket<unknown>, rawMessage: string | Buffer) {
     const message = parseSubscriptionMessage(rawMessage);

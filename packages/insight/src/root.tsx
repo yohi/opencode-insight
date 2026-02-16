@@ -1,5 +1,6 @@
 import { Suspense } from "solid-js";
 import { A, Body, FileRoutes, Head, Html, Meta, Routes, Scripts, Title } from "solid-start";
+import PluginRoutes from "~/core/plugin-routes";
 import Layout from "./ui/layout";
 import "./app.css"; // We'll create this or use tailwind in index.css
 
@@ -16,6 +17,7 @@ export default function App() {
           <Layout>
             <Routes>
               <FileRoutes />
+              <PluginRoutes />
             </Routes>
           </Layout>
         </Suspense>

@@ -54,6 +54,13 @@ const now = Math.floor(Date.now() / 1000);
 db.run("INSERT INTO session (id, title, created_at, updated_at, status) VALUES (?, ?, ?, ?, ?)", [session1, "Fix Login Bug", now, now, "active"]);
 db.run("INSERT INTO session (id, title, created_at, updated_at, status) VALUES (?, ?, ?, ?, ?)", [session2, "Refactor Auth", now - 3600, now - 1800, "completed"]);
 
+// Add more dummy sessions for pagination testing
+for (let i = 3; i <= 30; i++) {
+  const sessId = `sess_${String(i).padStart(3, "0")}`;
+  const timestamp = now - i * 3600;
+  db.run("INSERT INTO session (id, title, created_at, updated_at, status) VALUES (?, ?, ?, ?, ?)", [sessId, `Pagination Test ${i}`, timestamp, timestamp, "completed"]);
+}
+
 db.run("INSERT INTO message (session_id, role, content, timestamp) VALUES (?, ?, ?, ?)", [session1, "user", "I can't login with email", now]);
 db.run("INSERT INTO message (session_id, role, content, timestamp) VALUES (?, ?, ?, ?)", [session1, "assistant", "Checking the logs...", now + 5]);
 db.run("INSERT INTO message (session_id, role, content, timestamp) VALUES (?, ?, ?, ?)", [session2, "user", "Refactor the auth middleware", now - 3600]);
