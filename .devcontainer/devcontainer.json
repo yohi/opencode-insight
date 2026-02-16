@@ -2,7 +2,7 @@
   "name": "OpenCode Insight (Bun)",
   "dockerComposeFile": "../compose.yaml",
   "service": "app",
-  "workspaceFolder": "/app",
+  "workspaceFolder": "/workspace",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -13,6 +13,7 @@
     }
   },
   "remoteUser": "bun",
+  "postCreateCommand": "cd packages/insight && bun install",
   "features": {
     "ghcr.io/devcontainers/features/git:1": {}
   }

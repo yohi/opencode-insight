@@ -1,11 +1,9 @@
 services:
   app:
     build:
-      context: .
+      context: packages/insight
       dockerfile: Dockerfile
-      target: prerelease # Use prerelease stage for development? No, devcontainer uses image usually.
-      # If devcontainer uses Dockerfile, it builds the image.
-      # But devcontainer usually overrides command to keep running.
+      target: prerelease
     image: opencode-insight:latest
     ports:
       - "3000:3000"
@@ -15,9 +13,9 @@ services:
       - PORT=3000
       - DB_PATH=/data/opencode.db
     volumes:
-      - ./:/app
+      - ./:/workspace
       - sqlite_data:/data
-      - node_modules:/app/node_modules
+      - node_modules:/workspace/packages/insight/node_modules
 
 volumes:
   sqlite_data:
