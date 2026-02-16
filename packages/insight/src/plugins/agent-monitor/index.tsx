@@ -1,9 +1,17 @@
-import { For, Show, createEffect, createMemo } from "solid-js";
-import { store, Agent } from "~/core/store";
+import { For, Show, createEffect, createMemo, onMount, onCleanup } from "solid-js";
+import { store, Agent, sendWebSocketMessage } from "~/core/store";
 import { Card, Badge, Stack } from "~/core/ui-kit";
 
 export default function AgentMonitor() {
   let logContainer: HTMLDivElement | undefined;
+
+  onMount(() => {
+    sendWebSocketMessage({ type: "SUBSCRIBE", topic: "logs" });
+  });
+
+  onCleanup(() => {
+    sendWebSocketMessage({ type: "UNSUBSCRIBE", topic: "logs" });
+  });
 
   // Auto-scroll logs
   createEffect(() => {

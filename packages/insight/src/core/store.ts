@@ -1,22 +1,7 @@
-import { createStore, reconcile } from "solid-js/store";
-import type { Session, Message, Usage } from "./schema";
+import { createStore } from "solid-js/store";
+import type { SessionWithDetails, Agent, WebSocketMessage } from "./types";
 
-export type SessionWithDetails = Session & {
-  messages: Message[];
-  usage?: Usage;
-};
-
-export type AgentStatus = "idle" | "thinking" | "busy" | "error";
-
-export interface Agent {
-  id: string;
-  name: string;
-  status: AgentStatus;
-  currentTool?: string;
-  currentThought?: string;
-  lastAction?: string;
-  lastActive: number;
-}
+type OutboundWebSocketMessage = Extract<WebSocketMessage, { type: "SUBSCRIBE" | "UNSUBSCRIBE" }>;
 
 export const [store, setStore] = createStore({
   logs: [] as string[],
@@ -26,6 +11,7 @@ export const [store, setStore] = createStore({
 });
 
 let ws: WebSocket | null = null;
+const pendingMessages: OutboundWebSocketMessage[] = [];
 
 // Helper to parse logs and update agent state
 function updateAgentStateFromLog(log: string) {
@@ -64,6 +50,49 @@ function updateAgentStateFromLog(log: string) {
   });
 }
 
+function appendLog(logs: string[], message: string) {
+  const newLogs = [...logs, message];
+  return newLogs.length > 1000 ? newLogs.slice(newLogs.length - 1000) : newLogs;
+}
+
+function handleMessage(data: WebSocketMessage) {
+  switch (data.type) {
+    case "AGENT_LOG":
+      setStore("logs", (logs) => appendLog(logs, data.log));
+      updateAgentStateFromLog(data.log);
+      break;
+
+    case "UPDATE_SESSION_LIST":
+      // Reconcile session list: remove deleted sessions, update existing/new ones
+      setStore("sessions", (prevSessions) => {
+        const nextSessions: any = {};
+        for (const s of data.sessions) {
+          const prev = prevSessions[s.id];
+          nextSessions[s.id] = {
+            ...(prev || {}),
+            ...s,
+            messages: prev?.messages || [],
+          };
+        }
+        return nextSessions;
+      });
+      break;
+
+    case "UPDATE_SESSION_DETAIL":
+      // Explicit merge for session details
+      setStore("sessions", data.sessionId, (prev) => ({
+        ...(prev || {}),
+        ...data.session,
+        messages: data.session.messages || prev?.messages || [],
+      }));
+      break;
+
+    case "INIT":
+      console.log("WebSocket initialized:", data.payload.message);
+      break;
+  }
+}
+
 export function connectWebSocket() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
     return;
@@ -77,41 +106,25 @@ export function connectWebSocket() {
 
   ws.onopen = () => {
     setStore("status", "connected");
+    
+    // Flush pending messages
+    while (pendingMessages.length > 0) {
+      const msg = pendingMessages.shift();
+      if (msg && ws) {
+        ws.send(JSON.stringify(msg));
+      }
+    }
   };
 
   ws.onmessage = (event) => {
     try {
-      const data = JSON.parse(event.data);
-      if (data.type === "AGENT_LOG") {
-        if (typeof data.log !== "string") {
-          console.warn("Received AGENT_LOG with non-string log:", data.log);
-          return;
-        }
-        setStore("logs", (logs) => [...logs, data.log]);
-        updateAgentStateFromLog(data.log);
-      } else if (data.type === "UPDATE_SESSION") {
-        // Handle session updates (could refetch or update store)
-        // For now, we rely on refetching on navigation or implementing a resource reload
-        console.log("Session update received:", data);
-        if (data.session && data.session.id) {
-             setStore("sessions", data.session.id, (prev) => ({ ...prev, ...data.session }));
-        }
-      } else if (data.type === "MESSAGE_ADDED") {
-        console.log("Message added:", data);
-        if (data.sessionId && data.message) {
-          setStore("sessions", data.sessionId, (prev) => {
-            const current = prev || { id: data.sessionId, title: "Loading...", messages: [] };
-            return { ...current, messages: [...(current.messages || []), data.message] };
-          });
-        }
-      } else if (data.type === "USAGE_UPDATED") {
-        console.log("Usage updated:", data);
-        if (data.sessionId && data.usage) {
-          setStore("sessions", data.sessionId, (prev) => {
-            const current = prev || { id: data.sessionId, title: "Loading...", messages: [] };
-            return { ...current, usage: data.usage };
-          });
-        }
+      const data = JSON.parse(event.data) as WebSocketMessage;
+      handleMessage(data);
+
+      // Keep some legacy logging if needed during transition, 
+      // but the main logic is now in handleMessage
+      if (data.type === "UPDATE_SESSION_DETAIL") {
+        console.log("Session detail updated:", data.sessionId);
       }
     } catch (e) {
       console.error("Failed to parse message:", e);
@@ -122,7 +135,7 @@ export function connectWebSocket() {
     console.error("WebSocket error:", event);
     setStore("status", "error");
     // Also surface the error in logs so it's visible in the UI if logs are shown
-    setStore("logs", (logs) => [...logs, "WebSocket connection error occurred."]);
+    setStore("logs", (logs) => appendLog(logs, "WebSocket connection error occurred."));
   };
 
   ws.onclose = () => {
@@ -135,5 +148,14 @@ export function disconnect() {
   if (ws) {
     ws.close();
     ws = null;
+  }
+}
+
+export function sendWebSocketMessage(message: OutboundWebSocketMessage) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(message));
+  } else {
+    pendingMessages.push(message);
+    console.warn("WebSocket is not connected. Message queued:", message);
   }
 }
