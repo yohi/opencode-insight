@@ -5,8 +5,11 @@ import { desc } from "drizzle-orm";
 
 export async function GET({ request }: APIEvent) {
   const url = new URL(request.url);
-  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "20"), 1), 100);
-  const offset = Math.max(parseInt(url.searchParams.get("offset") || "0"), 0);
+  const parsedLimit = parseInt(url.searchParams.get("limit") || "20");
+  const limit = Math.min(Math.max(Number.isNaN(parsedLimit) ? 20 : parsedLimit, 1), 100);
+  
+  const parsedOffset = parseInt(url.searchParams.get("offset") || "0");
+  const offset = Math.max(Number.isNaN(parsedOffset) ? 0 : parsedOffset, 0);
 
   const sessions = await db
     .select()
