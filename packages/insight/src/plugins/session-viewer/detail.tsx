@@ -15,7 +15,22 @@ async function fetchSessionDetails(id: string) {
     ...(prev || {}),
     ...data,
     // Preserve messages if they were already updating via WebSocket
-    messages: data.messages || (prev?.messages || [])
+    messages: (() => {
+      const existing = prev?.messages || [];
+      const incoming = data.messages || [];
+      const merged = [...existing];
+      
+      incoming.forEach((m: any) => {
+        const isDuplicate = merged.some(
+          (e: any) => e.timestamp === m.timestamp && e.content === m.content
+        );
+        if (!isDuplicate) {
+          merged.push(m);
+        }
+      });
+      
+      return merged.sort((a: any, b: any) => a.timestamp - b.timestamp);
+    })()
   }));
   
   return data;
