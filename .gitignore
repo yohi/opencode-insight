@@ -37,6 +37,7 @@ lerna-debug.log*
 
 # OpenCode / SDD
 .opencode
+.sisyphus
 # specs
 
 # Database
