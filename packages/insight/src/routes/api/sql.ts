@@ -41,12 +41,16 @@ function normalizeReadonlyQuery(query: string): string {
     throw new Error("Forbidden SQL keyword detected.");
   }
 
-  const limitMatch = trimmed.match(/\blimit\s+(\d+)\b/i);
-  if (limitMatch) {
-    const limit = parseInt(limitMatch[1], 10);
+  const limitMatches = [...trimmed.matchAll(/\blimit\s+(\d+)\b/gi)];
+  if (limitMatches.length > 0) {
+    const lastMatch = limitMatches[limitMatches.length - 1]!;
+    const limit = parseInt(lastMatch[1]!, 10);
     const MAX_LIMIT = 100;
     if (limit > MAX_LIMIT) {
-      return trimmed.replace(/\blimit\s+\d+\b/i, `LIMIT ${MAX_LIMIT}`);
+      const index = lastMatch.index!;
+      const before = trimmed.slice(0, index);
+      const after = trimmed.slice(index + lastMatch[0].length);
+      return `${before}LIMIT ${MAX_LIMIT}${after}`;
     }
     return trimmed;
   }

@@ -51,7 +51,7 @@ socket.onopen = () => {
   console.log("WebSocket connected.");
   if (subscribe) {
     console.log(`Subscribing to ${subscribe}...`);
-    socket.send(JSON.stringify({ type: "SUBSCRIBE", payload: subscribe }));
+    socket.send(JSON.stringify({ type: "SUBSCRIBE", topic: subscribe }));
   }
 };
 

@@ -62,13 +62,18 @@ function handleMessage(data: WebSocketMessage) {
       break;
 
     case "UPDATE_SESSION_LIST":
-      // Merge sessions list into store.sessions
-      data.sessions.forEach((s) => {
-        setStore("sessions", s.id, (prev) => ({
-          ...prev,
-          ...s,
-          messages: prev?.messages || [],
-        }));
+      // Reconcile session list: remove deleted sessions, update existing/new ones
+      setStore("sessions", (prevSessions) => {
+        const nextSessions: any = {};
+        for (const s of data.sessions) {
+          const prev = prevSessions[s.id];
+          nextSessions[s.id] = {
+            ...(prev || {}),
+            ...s,
+            messages: prev?.messages || [],
+          };
+        }
+        return nextSessions;
       });
       break;
 
