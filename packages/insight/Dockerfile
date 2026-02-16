@@ -34,6 +34,9 @@ COPY --from=prerelease /app/src/ src/
 COPY --from=prerelease /app/package.json .
 COPY --from=prerelease /app/bun.lock .
 
+# run as non-root user
+USER bun
+
 # set environment variables
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
@@ -43,4 +46,5 @@ ENV PORT=3000
 EXPOSE 3000 3001
 
 # run the app (both frontend and backend)
-CMD ["/bin/sh", "-c", "bun run start:server & bun run start"]
+# using a simple shell loop to wait for both processes
+CMD ["/bin/sh", "-c", "bun run start:server & bun run start & wait"]
