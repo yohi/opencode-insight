@@ -1,5 +1,5 @@
 import { A } from "solid-start";
-import { Card, Button } from "../mocks/ui";
+import { Card, Button } from "~/core/ui-kit";
 
 export default function Home() {
   return (
