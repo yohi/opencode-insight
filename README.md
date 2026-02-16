@@ -35,6 +35,16 @@ You need to run two processes for development:
 
 Open your browser at `http://localhost:3000` (or the port shown in the terminal).
 
+### Running with Docker
+
+This project supports **Devcontainer**. Open in VS Code and select "Reopen in Container" for a configured environment.
+
+Alternatively, you can run the production build with Docker Compose:
+```bash
+cd packages/insight
+docker compose up -d --build
+```
+
 ## Project Structure
 
 - `packages/insight`: The core application (SolidStart + Tailwind CSS + WebSocket Server).
