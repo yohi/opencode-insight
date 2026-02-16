@@ -1,5 +1,6 @@
 import { ServerWebSocket } from "bun";
 import type { SubscriptionTopic, WebSocketMessage } from "../core/types";
+import { loadPlugins } from "../core/plugin-loader.server";
 
 type SubscriptionMessage =
   | { type: "SUBSCRIBE"; topic: SubscriptionTopic }
@@ -13,11 +14,7 @@ function toTextMessage(message: string | Buffer): string {
 }
 
 function isSubscriptionTopic(topic: unknown): topic is SubscriptionTopic {
-  return (
-    topic === "sessions:list" ||
-    topic === "logs" ||
-    (typeof topic === "string" && topic.startsWith("sessions:detail:") && topic.length > "sessions:detail:".length)
-  );
+  return topic === "logs";
 }
 
 function parseSubscriptionMessage(raw: string | Buffer): SubscriptionMessage | null {
@@ -50,34 +47,13 @@ function removeClient(ws: ServerWebSocket<unknown>) {
   subscriptionsByClient.delete(ws);
 }
 
-export function getSubscriptionSnapshot(): {
-  hasSessionListSubscribers: boolean;
-  sessionDetailIds: string[];
-} {
-  const detailIds = new Set<string>();
-  let hasSessionListSubscribers = false;
-
+export function hasTopicSubscribers(topic: SubscriptionTopic): boolean {
   for (const topics of subscriptionsByClient.values()) {
-    if (topics.has("sessions:list")) {
-      hasSessionListSubscribers = true;
-    }
-
-    for (const topic of topics) {
-      if (!topic.startsWith("sessions:detail:")) {
-        continue;
-      }
-
-      const sessionId = topic.slice("sessions:detail:".length);
-      if (sessionId) {
-        detailIds.add(sessionId);
-      }
+    if (topics.has(topic)) {
+      return true;
     }
   }
-
-  return {
-    hasSessionListSubscribers,
-    sessionDetailIds: [...detailIds],
-  };
+  return false;
 }
 
 export const wsHandler = {
@@ -86,7 +62,14 @@ export const wsHandler = {
     subscriptionsByClient.set(ws, new Set<SubscriptionTopic>());
 
     console.log("Client connected");
-    send(ws, { type: "INIT", payload: { message: "Connected to Insight", workspacePath: undefined } });
+    const plugins = loadPlugins();
+    send(ws, {
+      type: "INIT",
+      payload: [
+        { type: "WORKSPACE", workspacePath: process.cwd() },
+        ...plugins.map((plugin) => ({ type: "PLUGIN" as const, id: plugin.id, name: plugin.name })),
+      ],
+    });
   },
   message(ws: ServerWebSocket<unknown>, rawMessage: string | Buffer) {
     const message = parseSubscriptionMessage(rawMessage);

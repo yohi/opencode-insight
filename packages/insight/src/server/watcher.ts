@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readonlyDb as db } from "../core/db";
 import { message, session, usage } from "../core/schema";
-import { broadcastToTopic, getSubscriptionSnapshot } from "./ws";
+import { broadcast } from "./ws";
 import { asc, desc, eq } from "drizzle-orm";
 import type { SessionWithDetails } from "../core/types";
 
@@ -16,7 +16,7 @@ function isTargetDbFile(filename: string | null, dbName: string): boolean {
 }
 
 async function fetchSessionList() {
-  return db.select().from(session).orderBy(desc(session.updatedAt)).limit(20);
+  return db.select().from(session).orderBy(desc(session.updatedAt)).limit(10);
 }
 
 async function fetchSessionDetail(sessionId: string): Promise<SessionWithDetails | null> {
@@ -52,29 +52,19 @@ async function fetchSessionDetail(sessionId: string): Promise<SessionWithDetails
 }
 
 async function dispatchSubscriptionUpdates() {
-  const snapshot = getSubscriptionSnapshot();
-  if (!snapshot.hasSessionListSubscribers && snapshot.sessionDetailIds.length === 0) {
-    return;
-  }
-
-  if (snapshot.hasSessionListSubscribers) {
-    const sessions = await fetchSessionList();
-    broadcastToTopic("sessions:list", {
-      type: "UPDATE_SESSION_LIST",
-      sessions,
-    });
-  }
-
-  for (const sessionId of snapshot.sessionDetailIds) {
-    const detail = await fetchSessionDetail(sessionId);
+  // Spec-aligned: broadcast per-session message updates.
+  // We don't currently track per-session subscriptions; clients can ignore updates they don't care about.
+  const sessions = await fetchSessionList();
+  for (const s of sessions) {
+    const detail = await fetchSessionDetail(s.id);
     if (!detail) {
       continue;
     }
 
-    broadcastToTopic(`sessions:detail:${sessionId}`, {
-      type: "UPDATE_SESSION_DETAIL",
-      sessionId,
-      session: detail,
+    broadcast({
+      type: "UPDATE_SESSION",
+      sessionId: s.id,
+      data: detail.messages,
     });
   }
 }
