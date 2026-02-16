@@ -28,8 +28,10 @@ if command -v xdg-open > /dev/null; then
     xdg-open "$URL"
 elif command -v open > /dev/null; then
     open "$URL"
-elif command -v start > /dev/null; then
-    start "$URL" # Windows (cmd)
+elif command -v explorer.exe > /dev/null; then
+    explorer.exe "$URL"
+elif command -v cmd.exe > /dev/null; then
+    cmd.exe /c start "$URL"
 else
     echo "Could not detect web browser command. Please open $URL manually."
 fi
