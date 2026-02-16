@@ -9,9 +9,7 @@ export function loadPlugins(): InsightPlugin[] {
     return cachedPlugins;
   }
 
-  // Client-side plugin discovery (UI-only definitions).
-  const modules = import.meta.glob<PluginModule>("~/plugins/*/plugin.ts", { eager: true });
-
+  const modules = import.meta.glob<PluginModule>("~/plugins/*/plugin.server.ts", { eager: true });
   cachedPlugins = Object.values(modules)
     .map((mod) => mod.default)
     .filter(Boolean);
