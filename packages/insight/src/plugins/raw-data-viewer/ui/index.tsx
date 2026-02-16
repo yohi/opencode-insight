@@ -38,7 +38,7 @@ function DataTable(props: { rows: DataRow[] }) {
         <thead class="bg-gray-50">
           <tr>
             <Show when={props.rows.length > 0}>
-              <For each={Object.keys(props.rows[0])}>
+              <For each={Object.keys(props.rows[0] || {})}>
                 {(header) => (
                   <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">{header}</th>
                 )}
