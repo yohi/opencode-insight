@@ -93,6 +93,10 @@ export default function SessionList() {
         <Show when={isLoading() && sessions().length === 0}>
            <div class="text-gray-500">Loading sessions...</div>
         </Show>
+
+        <Show when={!sessionsData.error && !isLoading() && sessions().length === 0}>
+           <div class="text-gray-500 text-lg">No sessions found</div>
+        </Show>
         
         <Show when={!sessionsData.error && !isLoading() && hasMore()}>
             <button 
