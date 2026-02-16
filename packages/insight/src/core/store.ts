@@ -83,6 +83,10 @@ export function connectWebSocket() {
     try {
       const data = JSON.parse(event.data);
       if (data.type === "AGENT_LOG") {
+        if (typeof data.log !== "string") {
+          console.warn("Received AGENT_LOG with non-string log:", data.log);
+          return;
+        }
         setStore("logs", (logs) => [...logs, data.log]);
         updateAgentStateFromLog(data.log);
       } else if (data.type === "UPDATE_SESSION") {

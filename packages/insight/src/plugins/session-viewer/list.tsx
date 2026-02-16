@@ -39,6 +39,13 @@ export default function SessionList() {
         <Input placeholder="Search sessions..." class="w-64" />
       </div>
 
+      <Show when={resource.error}>
+        <div class="p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg mb-4">
+          <p class="font-semibold">Error loading sessions</p>
+          <p class="text-sm">{resource.error.message}</p>
+        </div>
+      </Show>
+
       <Show when={!resource.loading} fallback={<div class="p-4">Loading sessions...</div>}>
         <div class="space-y-2">
           <For each={sessions()}>

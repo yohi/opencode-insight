@@ -52,7 +52,7 @@ export default function SessionDetail() {
                 <Card class={`max-w-2xl ${msg.role === "user" ? "bg-blue-50 border-blue-100" : "bg-white border-gray-200"}`}>
                   <div class="text-xs text-gray-500 mb-1 font-semibold uppercase">{msg.role}</div>
                   <div class="prose prose-sm markdown-body">
-                    <SolidMarkdown children={msg.content} />
+                    <SolidMarkdown children={msg.content} skipHtml={true} />
                   </div>
                   <div class="text-xs text-gray-400 mt-2 text-right">
                     {new Date(typeof msg.timestamp === 'number' ? msg.timestamp * 1000 : msg.timestamp).toLocaleTimeString()}
