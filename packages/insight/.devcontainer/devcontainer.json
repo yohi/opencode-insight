@@ -1,0 +1,19 @@
+{
+  "name": "OpenCode Insight (Bun)",
+  "dockerComposeFile": "../compose.yaml",
+  "service": "app",
+  "workspaceFolder": "/app",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "oven.bun-vscode",
+        "ms-azuretools.vscode-docker",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+  "remoteUser": "bun",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {}
+  }
+}

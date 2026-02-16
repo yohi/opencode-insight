@@ -38,3 +38,10 @@ lerna-debug.log*
 # OpenCode / SDD
 .opencode
 # specs
+
+# Database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+

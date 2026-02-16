@@ -42,3 +42,22 @@ You need to run two processes:
 
 The application reads from `opencode.db` in the project root by default (or set `DB_PATH` env var).
 It uses SQLite in WAL mode for better concurrency.
+
+## Docker Development
+
+This project supports development using **Devcontainer** (VS Code) or Docker Compose.
+
+### Devcontainer (Recommended)
+1. Open the project in VS Code.
+2. Click "Reopen in Container" when prompted (or use Command Palette).
+3. The environment will be set up automatically.
+4. Run `bun run dev` and `bun run start:server` in the integrated terminal.
+
+### Production Build
+To build and run the production container:
+
+```bash
+docker compose up -d --build
+```
+The application will be available at `http://localhost:3000`.
+

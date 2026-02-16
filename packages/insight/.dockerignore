@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.devcontainer
+.vscode
+opencode.db
+opencode.db-journal
+opencode.db-wal
+opencode.db-shm
+*.log
