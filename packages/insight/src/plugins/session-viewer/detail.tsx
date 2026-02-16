@@ -1,4 +1,4 @@
-import { createResource, For, Show, createEffect } from "solid-js";
+import { createResource, For, Show, createEffect, createSignal, onMount } from "solid-js";
 import { useParams } from "solid-start";
 import { Badge, Card } from "~/core/ui-kit";
 import { store, setStore } from "~/core/store";
@@ -38,9 +38,19 @@ async function fetchSessionDetails(id: string) {
 
 export default function SessionDetail() {
   const params = useParams();
-  const [resource] = createResource(() => params.id, fetchSessionDetails);
+  const [isMounted, setIsMounted] = createSignal(false);
 
-  const session = () => store.sessions[params.id];
+  onMount(() => {
+    setIsMounted(true);
+  });
+
+  // Only fetch on client side after mount to avoid SSR fetch errors
+  const [resource] = createResource(
+    () => (isMounted() ? params.id : false),
+    fetchSessionDetails
+  );
+
+  const session = () => params.id ? store.sessions[params.id] : undefined;
 
   return (
     <div class="space-y-4">
