@@ -1,6 +1,5 @@
 import { A } from "solid-start";
 import { For } from "solid-js";
-import { Card, Button } from "../core/ui-kit";
 import { store } from "~/core/store";
 import { plugins } from "~/plugins/registry";
 
