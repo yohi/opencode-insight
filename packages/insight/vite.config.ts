@@ -4,9 +4,6 @@ import path from "path";
 
 export default defineConfig({
   plugins: [solid({ adapter: "solid-start-bun" })],
-  define: {
-    "process.env": {},
-  },
   resolve: {
     alias: {
       "@opencode-ai/ui": path.resolve(__dirname, "./src/core/ui-kit.tsx"),
