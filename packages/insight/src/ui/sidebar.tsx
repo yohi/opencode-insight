@@ -1,6 +1,8 @@
 import { A } from "solid-start";
-import { Card, Button } from "../mocks/ui";
+import { For } from "solid-js";
+import { Card, Button } from "../core/ui-kit";
 import { store } from "~/core/store";
+import { plugins } from "~/plugins/registry";
 
 export default function Sidebar() {
   return (
@@ -12,18 +14,17 @@ export default function Sidebar() {
         <A href="/" class="block px-4 py-2 rounded hover:bg-gray-800" activeClass="bg-gray-800">
           Home
         </A>
-        <A href="/sessions" class="block px-4 py-2 rounded hover:bg-gray-800" activeClass="bg-gray-800">
-          Sessions
-        </A>
-        <A href="/agent-monitor" class="block px-4 py-2 rounded hover:bg-gray-800" activeClass="bg-gray-800">
-          Agent Monitor
-        </A>
-        <A href="/settings" class="block px-4 py-2 rounded hover:bg-gray-800" activeClass="bg-gray-800">
-          Settings
-        </A>
-        <A href="/raw-data" class="block px-4 py-2 rounded hover:bg-gray-800" activeClass="bg-gray-800">
-          Raw Data
-        </A>
+        <For each={plugins}>
+          {(plugin) => (
+            <For each={plugin.sidebarItems}>
+              {(item) => (
+                <A href={item.href} class="block px-4 py-2 rounded hover:bg-gray-800" activeClass="bg-gray-800">
+                  {item.label}
+                </A>
+              )}
+            </For>
+          )}
+        </For>
       </nav>
       <div class="p-4 border-t border-gray-800 text-sm text-gray-400">
         Status: <span class={store.status === "connected" ? "text-green-400" : "text-red-400"}>{store.status}</span>
