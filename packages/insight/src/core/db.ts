@@ -6,6 +6,7 @@ const dbPath = process.env.DB_PATH || "opencode.db";
 
 let sqlite: any;
 let db: any;
+let readonlySqlite: any;
 let isBun = false;
 
 try {
@@ -15,6 +16,9 @@ try {
 
   sqlite = new Database(dbPath);
   sqlite.run("PRAGMA journal_mode = WAL;");
+  
+  readonlySqlite = new Database(dbPath, { readonly: true });
+  
   db = drizzle(sqlite, { schema });
   isBun = true;
   console.log("Using bun:sqlite");
@@ -27,6 +31,9 @@ try {
 
   sqlite = new Database(dbPath);
   sqlite.pragma("journal_mode = WAL");
+  
+  readonlySqlite = new Database(dbPath, { readonly: true });
+
   db = drizzle(sqlite, { schema });
   isBun = false;
 }
@@ -40,4 +47,12 @@ export function rawQuery(sql: string, params: any[] = []) {
   }
 }
 
-export { sqlite, db };
+export function readonlyQuery(sql: string, params: any[] = []) {
+  if (isBun) {
+    return readonlySqlite.query(sql).all(...params);
+  } else {
+    return readonlySqlite.prepare(sql).all(...params);
+  }
+}
+
+export { sqlite, db, readonlySqlite };

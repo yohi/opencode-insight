@@ -123,24 +123,24 @@ export function startLogWatcher(logPath: string) {
       if (size === null) {
         console.warn(`Log file not found yet: ${logPath}`);
         warnedMissingFile = true;
-        return;
+      } else {
+        fileOffset = size;
       }
-
-      fileOffset = size;
     })
     .catch((error) => {
       console.error("Failed to initialize log watcher offset:", error);
+    })
+    .finally(() => {
+      console.log(`Watching log directory at ${logDir} for changes to ${logName}`);
+
+      fs.watch(logDir, (eventType, filename) => {
+        if (!filename || filename !== logName) {
+          return;
+        }
+
+        if (eventType === "rename" || eventType === "change") {
+          scheduleRead();
+        }
+      });
     });
-
-  console.log(`Watching log directory at ${logDir} for changes to ${logName}`);
-
-  fs.watch(logDir, (eventType, filename) => {
-    if (!filename || filename !== logName) {
-      return;
-    }
-
-    if (eventType === "rename" || eventType === "change") {
-      scheduleRead();
-    }
-  });
 }

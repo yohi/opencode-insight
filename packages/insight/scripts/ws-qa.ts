@@ -29,7 +29,8 @@ Options:
 const url = values.url!;
 const subscribe = values.subscribe;
 const expectType = values.expect;
-const timeoutMs = parseInt(values.timeout!);
+const parsedTimeout = parseInt(values.timeout!, 10);
+const timeoutMs = isNaN(parsedTimeout) ? 5000 : parsedTimeout;
 
 if (!expectType) {
   console.error("Error: --expect <type> is required.");

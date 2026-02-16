@@ -67,7 +67,7 @@ export default function SettingsViewer() {
         <button 
           type="button"
           onClick={() => setIsDark(!isDark())}
-          class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded text-sm hover:bg-gray-300 transition-colors"
+          class={`px-3 py-1 rounded text-sm transition-colors ${isDark() ? "bg-gray-700 hover:bg-gray-600 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-900"}`}
         >
           {isDark() ? "Light Mode" : "Dark Mode"}
         </button>

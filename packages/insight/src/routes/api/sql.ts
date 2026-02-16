@@ -1,5 +1,5 @@
 import { APIEvent, json } from "solid-start/api";
-import { rawQuery } from "~/core/db";
+import { readonlyQuery } from "~/core/db";
 
 const FORBIDDEN_KEYWORDS = [
   "insert",
@@ -41,7 +41,13 @@ function normalizeReadonlyQuery(query: string): string {
     throw new Error("Forbidden SQL keyword detected.");
   }
 
-  if (/\blimit\s+\d+\b/i.test(trimmed)) {
+  const limitMatch = trimmed.match(/\blimit\s+(\d+)\b/i);
+  if (limitMatch) {
+    const limit = parseInt(limitMatch[1], 10);
+    const MAX_LIMIT = 100;
+    if (limit > MAX_LIMIT) {
+      return trimmed.replace(/\blimit\s+\d+\b/i, `LIMIT ${MAX_LIMIT}`);
+    }
     return trimmed;
   }
 
@@ -57,8 +63,8 @@ export async function POST({ request }: APIEvent) {
       return json({ error: "Query is required." }, { status: 400 });
     }
 
-    const readonlyQuery = normalizeReadonlyQuery(query);
-    const rows = rawQuery(readonlyQuery);
+    const readonlySql = normalizeReadonlyQuery(query);
+    const rows = readonlyQuery(readonlySql);
     return json({ rows });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to execute query.";

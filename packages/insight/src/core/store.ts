@@ -11,6 +11,7 @@ export const [store, setStore] = createStore({
 });
 
 let ws: WebSocket | null = null;
+const pendingMessages: OutboundWebSocketMessage[] = [];
 
 // Helper to parse logs and update agent state
 function updateAgentStateFromLog(log: string) {
@@ -52,7 +53,11 @@ function updateAgentStateFromLog(log: string) {
 function handleMessage(data: WebSocketMessage) {
   switch (data.type) {
     case "AGENT_LOG":
-      setStore("logs", (logs) => [...logs, data.log]);
+      setStore("logs", (logs) => {
+        const newLogs = [...logs, data.log];
+        // Limit logs to prevent memory leaks (keep last 1000)
+        return newLogs.length > 1000 ? newLogs.slice(newLogs.length - 1000) : newLogs;
+      });
       updateAgentStateFromLog(data.log);
       break;
 
@@ -94,6 +99,14 @@ export function connectWebSocket() {
 
   ws.onopen = () => {
     setStore("status", "connected");
+    
+    // Flush pending messages
+    while (pendingMessages.length > 0) {
+      const msg = pendingMessages.shift();
+      if (msg && ws) {
+        ws.send(JSON.stringify(msg));
+      }
+    }
   };
 
   ws.onmessage = (event) => {
@@ -135,6 +148,7 @@ export function sendWebSocketMessage(message: OutboundWebSocketMessage) {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(message));
   } else {
-    console.warn("WebSocket is not connected. Message dropped:", message);
+    pendingMessages.push(message);
+    console.warn("WebSocket is not connected. Message queued:", message);
   }
 }
