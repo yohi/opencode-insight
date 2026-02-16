@@ -1,61 +1,62 @@
 # OpenCode Insight
 
-OpenCode Insight is a developer tool for visualizing and monitoring the activities of OpenCode agents in real-time. It provides a web-based GUI to inspect tasks, logs, and system metrics.
+OpenCode Insight は、OpenCode エージェントのアクティビティをリアルタイムで可視化・監視するための開発者ツールです。
+タスク、ログ、システムメトリクスを検査するための Web ベースの GUI を提供します。
 
-## Quick Start
+## クイックスタート
 
-This project is a monorepo. The main application is located in `packages/insight`.
+このプロジェクトはモノレポ構成です。メインのアプリケーションは `packages/insight` にあります。
 
-### Prerequisites
+### 前提条件
 
-- [Bun](https://bun.sh) (v1.0.0 or later)
+- [Bun](https://bun.sh) (v1.0.0 以上)
 
-### Installation
+### インストール
 
 ```bash
 cd packages/insight
 bun install
 ```
 
-### Running the Application
+### アプリケーションの実行
 
-You need to run two processes for development:
+開発時には、以下の2つのプロセスを実行する必要があります：
 
-1.  **Backend Server** (WebSocket & File Watcher)
+1.  **バックエンドサーバー** (WebSocket & ファイル監視)
     ```bash
-    # In packages/insight
+    # packages/insight ディレクトリ内で実行
     bun run start:server
     ```
 
-2.  **Frontend Interface**
+2.  **フロントエンドインターフェース**
     ```bash
-    # In a separate terminal, inside packages/insight
+    # 別のターミナルを開き、packages/insight ディレクトリ内で実行
     bun run dev
     ```
 
-Open your browser at `http://localhost:3000` (or the port shown in the terminal).
+ブラウザで `http://localhost:3000` (またはターミナルに表示されたポート) を開いてください。
 
-### Running with Docker
+### Docker での実行
 
-This project supports **Devcontainer**. Open in VS Code and select "Reopen in Container" for a configured environment.
+このプロジェクトは **Devcontainer** をサポートしています。VS Code でプロジェクトを開き、「Reopen in Container」を選択することで、構築済みの開発環境を利用できます。
 
-Alternatively, you can run the production build with Docker Compose:
+また、Docker Compose を使用して本番ビルドを実行することも可能です（ルートディレクトリで実行）：
+
 ```bash
-cd packages/insight
 docker compose up -d --build
 ```
 
-## Project Structure
+## プロジェクト構成
 
-- `packages/insight`: The core application (SolidStart + Tailwind CSS + WebSocket Server).
-- `specs/`: Project specifications and documentation (SDD).
-- `AGENTS.md`: Guidelines for AI agents working on this codebase.
+- `packages/insight`: コアアプリケーション (SolidStart + Tailwind CSS + WebSocket Server)
+- `specs/`: プロジェクト仕様書とドキュメント (SDD)
+- `AGENTS.md`: このコードベースで作業する AI エージェント向けのガイドライン
 
-## Documentation
+## ドキュメント
 
-- See [packages/insight/README.md](./packages/insight/README.md) for detailed application documentation.
-- See [AGENTS.md](./AGENTS.md) for contribution guidelines and agent instructions.
+- アプリケーションの詳細なドキュメントについては [packages/insight/README.md](./packages/insight/README.md) を参照してください。
+- 貢献ガイドラインやエージェントへの指示については [AGENTS.md](./AGENTS.md) を参照してください。
 
-## License
+## ライセンス
 
 MIT
