@@ -50,14 +50,15 @@ function updateAgentStateFromLog(log: string) {
   });
 }
 
+function appendLog(logs: string[], message: string) {
+  const newLogs = [...logs, message];
+  return newLogs.length > 1000 ? newLogs.slice(newLogs.length - 1000) : newLogs;
+}
+
 function handleMessage(data: WebSocketMessage) {
   switch (data.type) {
     case "AGENT_LOG":
-      setStore("logs", (logs) => {
-        const newLogs = [...logs, data.log];
-        // Limit logs to prevent memory leaks (keep last 1000)
-        return newLogs.length > 1000 ? newLogs.slice(newLogs.length - 1000) : newLogs;
-      });
+      setStore("logs", (logs) => appendLog(logs, data.log));
       updateAgentStateFromLog(data.log);
       break;
 
@@ -82,6 +83,7 @@ function handleMessage(data: WebSocketMessage) {
       setStore("sessions", data.sessionId, (prev) => ({
         ...(prev || {}),
         ...data.session,
+        messages: prev?.messages || data.session?.messages || [],
       }));
       break;
 
@@ -133,7 +135,7 @@ export function connectWebSocket() {
     console.error("WebSocket error:", event);
     setStore("status", "error");
     // Also surface the error in logs so it's visible in the UI if logs are shown
-    setStore("logs", (logs) => [...logs, "WebSocket connection error occurred."]);
+    setStore("logs", (logs) => appendLog(logs, "WebSocket connection error occurred."));
   };
 
   ws.onclose = () => {
