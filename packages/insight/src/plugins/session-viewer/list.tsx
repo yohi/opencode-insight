@@ -26,6 +26,12 @@ export default function SessionList() {
      return timeB - timeA;
   });
 
+  const formatUpdatedAt = (value: unknown) => {
+    if (!value) return "Unknown";
+    const d = new Date(typeof value === "number" ? value * 1000 : (value as string));
+    return Number.isNaN(d.getTime()) ? "Unknown" : d.toLocaleString();
+  };
+
   return (
     <div class="space-y-4">
       <div class="flex justify-between items-center">
@@ -45,7 +51,7 @@ export default function SessionList() {
                   </div>
                   <div class="flex items-center space-x-4">
                     <span class="text-sm text-gray-400">
-                      {new Date(typeof session.updatedAt === 'number' ? session.updatedAt * 1000 : session.updatedAt).toLocaleString()}
+                      {formatUpdatedAt(session.updatedAt)}
                     </span>
                     <Badge class={
                       session.status === "completed" ? "bg-green-100 text-green-800" :
