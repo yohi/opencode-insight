@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { db } from "../core/db";
+import { readonlyDb as db } from "../core/db";
 import { message, session, usage } from "../core/schema";
 import { broadcastToTopic, getSubscriptionSnapshot } from "./ws";
 import { asc, desc, eq } from "drizzle-orm";

@@ -6,6 +6,7 @@ const dbPath = process.env.DB_PATH || "opencode.db";
 
 let sqlite: any;
 let db: any;
+let readonlyDb: any;
 let readonlySqlite: any;
 let isBun = false;
 
@@ -20,6 +21,7 @@ try {
   readonlySqlite = new Database(dbPath, { readonly: true });
   
   db = drizzle(sqlite, { schema });
+  readonlyDb = drizzle(readonlySqlite, { schema });
   isBun = true;
   console.log("Using bun:sqlite");
 } catch (e) {
@@ -35,6 +37,7 @@ try {
   readonlySqlite = new Database(dbPath, { readonly: true });
 
   db = drizzle(sqlite, { schema });
+  readonlyDb = drizzle(readonlySqlite, { schema });
   isBun = false;
 }
 
@@ -55,4 +58,4 @@ export function readonlyQuery(sql: string, params: any[] = []) {
   }
 }
 
-export { sqlite, db, readonlySqlite };
+export { sqlite, db, readonlySqlite, readonlyDb };

@@ -1,5 +1,5 @@
 import { A } from "solid-start";
-import { For } from "solid-js";
+import { For, Show } from "solid-js";
 import { store } from "~/core/store";
 import { loadPlugins } from "~/core/plugin-loader";
 
@@ -27,7 +27,14 @@ export default function Sidebar() {
         </For>
       </nav>
       <div class="p-4 border-t border-gray-800 text-sm text-gray-400">
-        Status: <span class={store.status === "connected" ? "text-green-400" : "text-red-400"}>{store.status}</span>
+        <Show when={store.workspacePath}>
+          <div class="mb-2 text-xs text-gray-500 truncate" title={store.workspacePath!}>
+            {store.workspacePath}
+          </div>
+        </Show>
+        <div>
+          Status: <span class={store.status === "connected" ? "text-green-400" : "text-red-400"}>{store.status}</span>
+        </div>
       </div>
     </div>
   );

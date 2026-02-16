@@ -35,7 +35,7 @@ export type SubscriptionTopic =
  * WebSocket Message Types (Discriminated Union)
  */
 export type WebSocketMessage =
-  | { type: "INIT"; payload: { message: string } }
+  | { type: "INIT"; payload: { message: string; workspacePath?: string } }
   | { type: "SUBSCRIBE"; topic: SubscriptionTopic }
   | { type: "UNSUBSCRIBE"; topic: SubscriptionTopic }
   | { type: "UPDATE_SESSION_LIST"; sessions: Session[] }
