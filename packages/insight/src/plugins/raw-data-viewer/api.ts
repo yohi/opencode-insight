@@ -42,7 +42,7 @@ function normalizeReadonlyQuery(query: string): string {
     throw new Error("Forbidden SQL keyword detected.");
   }
 
-  const limitMatches = [...trimmed.matchAll(/\\blimit\\s+(\\d+)\\b/gi)];
+  const limitMatches = [...trimmed.matchAll(/\blimit\s+(\d+)\b/gi)];
   if (limitMatches.length > 0) {
     const lastMatch = limitMatches[limitMatches.length - 1]!;
     const limit = parseInt(lastMatch[1]!, 10);
