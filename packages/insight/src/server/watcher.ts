@@ -82,6 +82,14 @@ async function dispatchSubscriptionUpdates() {
   const sessionIds = sessions.map((s) => s.id);
   const details = await fetchSessionDetails(sessionIds);
 
+  // Clean up stale cache keys
+  const activeSessionIds = new Set(sessionIds);
+  for (const cachedId of sessionStateCache.keys()) {
+    if (!activeSessionIds.has(cachedId)) {
+      sessionStateCache.delete(cachedId);
+    }
+  }
+
   for (let i = 0; i < sessions.length; i++) {
     const s = sessions[i]!;
     const detail = details[i];
