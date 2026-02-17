@@ -7,6 +7,13 @@ import type { Message, SessionWithDetails } from "~/core/types";
 
 function normalizeTimestampToMs(value: string | number): number {
   if (typeof value === "string") {
+    // Attempt numeric coercion first
+    const num = Number(value);
+    if (!isNaN(num)) {
+      // Heuristic: less than 10 billion (up to year 2286) -> seconds, else milliseconds
+      return num < 10000000000 ? num * 1000 : num;
+    }
+    // Fallback to date parsing
     const parsed = new Date(value).getTime();
     if (isNaN(parsed)) return 0; // Deterministic fallback
     return parsed;
