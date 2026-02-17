@@ -5,6 +5,17 @@ import { store, setStore } from "~/core/store";
 import { SolidMarkdown } from "solid-markdown";
 import type { Message, SessionWithDetails } from "~/core/types";
 
+function normalizeTimestampToMs(value: string | number): number {
+  if (typeof value === "string") {
+    const parsed = new Date(value).getTime();
+    if (isNaN(parsed)) return Date.now();
+    return parsed;
+  }
+  // Assume seconds if small (heuristic: less than 10 billion, covering up to year 2286)
+  // Otherwise assume milliseconds
+  return value < 10000000000 ? value * 1000 : value;
+}
+
 async function fetchSessionDetails(id: string) {
   if (!id) throw new Error("Invalid session ID");
   const response = await fetch(`/api/sessions/${id}`);
@@ -31,11 +42,7 @@ async function fetchSessionDetails(id: string) {
 
     // Sort using proper timestamp comparison
     merged.sort((a, b) => {
-      const timeA =
-        typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp;
-      const timeB =
-        typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp;
-      return timeA - timeB;
+      return normalizeTimestampToMs(a.timestamp) - normalizeTimestampToMs(b.timestamp);
     });
 
     return {
@@ -84,7 +91,7 @@ export default function SessionDetail() {
 
         <div class="space-y-4">
           <For each={session()?.messages}>
-            {(msg: any) => (
+            {(msg: Message) => (
               <div class={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <Card class={`max-w-2xl ${msg.role === "user" ? "bg-blue-50 border-blue-100" : "bg-white border-gray-200"}`}>
                   <div class="text-xs text-gray-500 mb-1 font-semibold uppercase">{msg.role}</div>
@@ -92,7 +99,7 @@ export default function SessionDetail() {
                     <SolidMarkdown children={msg.content} skipHtml={true} />
                   </div>
                   <div class="text-xs text-gray-400 mt-2 text-right">
-                    {new Date(typeof msg.timestamp === 'number' ? msg.timestamp * 1000 : msg.timestamp).toLocaleTimeString()}
+                    {new Date(normalizeTimestampToMs(msg.timestamp)).toLocaleTimeString()}
                   </div>
                 </Card>
               </div>
