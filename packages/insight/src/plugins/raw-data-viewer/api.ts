@@ -22,6 +22,13 @@ const FORBIDDEN_KEYWORD_REGEXES = FORBIDDEN_KEYWORDS.map(
   (keyword) => new RegExp(`\\b${keyword}\\b`, "i"),
 );
 
+class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ValidationError";
+  }
+}
+
 type SqlRequestBody = {
   query?: string;
 };
@@ -46,36 +53,52 @@ function normalizeReadonlyQuery(query: string): string {
     .trim();
 
   if (!/^select\b/i.test(cleaned)) {
-    throw new Error("Only SELECT queries are allowed.");
+    throw new ValidationError("Only SELECT queries are allowed.");
   }
 
   if (cleaned.includes(";")) {
-    throw new Error("Multiple statements are not allowed.");
+    throw new ValidationError("Multiple statements are not allowed.");
   }
 
   if (hasForbiddenKeyword(cleaned)) {
-    throw new Error("Write operations are not allowed.");
+    throw new ValidationError("Write operations are not allowed.");
   }
 
-  const limitMatches = [...cleaned.matchAll(/\blimit\s+(\d+)\b/gi)];
+  const limitMatches = [
+    ...cleaned.matchAll(/\blimit\s+(?:(\d+)\s*,\s*(\d+)|(\d+)(?:\s+offset\s+(\d+))?)\b/gi),
+  ];
   if (limitMatches.length === 0) {
     return `${cleaned} LIMIT 100`;
   }
 
   const lastMatch = limitMatches[limitMatches.length - 1]!;
-  const limit = parseInt(lastMatch[1]!, 10);
+  const offsetComma = lastMatch[1];
+  const limitComma = lastMatch[2];
+  const limitSimpleOrOffset = lastMatch[3];
+  const offsetKeyword = lastMatch[4];
+
+  const limitRaw = limitComma ?? limitSimpleOrOffset;
+  const limit = Number.parseInt(limitRaw ?? "", 10);
   if (!Number.isFinite(limit)) {
-    throw new Error("Invalid LIMIT value.");
+    throw new ValidationError("Invalid LIMIT value.");
   }
 
   if (limit <= 100) {
     return cleaned;
   }
 
+  const clampedLimit = 100;
+  let replacement = `LIMIT ${clampedLimit}`;
+  if (offsetComma !== undefined && limitComma !== undefined) {
+    replacement = `LIMIT ${offsetComma}, ${clampedLimit}`;
+  } else if (offsetKeyword !== undefined && limitSimpleOrOffset !== undefined) {
+    replacement = `LIMIT ${clampedLimit} OFFSET ${offsetKeyword}`;
+  }
+
   const index = lastMatch.index!;
   const before = cleaned.slice(0, index);
   const after = cleaned.slice(index + lastMatch[0].length);
-  return `${before}LIMIT 100${after}`;
+  return `${before}${replacement}${after}`;
 }
 
 export async function getRawData(ctx: APIContext): Promise<Response> {
@@ -115,21 +138,15 @@ export async function runSql(ctx: APIContext): Promise<Response> {
     const query = body.query?.trim() ?? "";
 
     if (!query) {
-      return json({ error: "Query is required." }, { status: 400 });
+      throw new ValidationError("Query is required.");
     }
 
     const readonlySql = normalizeReadonlyQuery(query);
     const rows = readonlyQuery(readonlySql);
     return json({ rows });
   } catch (error) {
+    const isValidationError = error instanceof ValidationError;
     const message = error instanceof Error ? error.message : "Failed to execute query.";
-    // Simple heuristic: if message contains "allowed" or "required" or "Invalid", it's likely a validation error (400)
-    // Otherwise assume server error (500)
-    const isValidationError = 
-      message.includes("allowed") || 
-      message.includes("required") || 
-      message.includes("Invalid");
-      
     return json({ error: message }, { status: isValidationError ? 400 : 500 });
   }
 }

@@ -32,7 +32,7 @@ async function fetchSessionDetails(id: string) {
       };
     });
 
-    return data;
+    return store.sessions[id];
   } catch (err) {
     console.error("Error fetching session details:", err);
     throw err;
