@@ -1,38 +1,50 @@
-import { createResource, For, Show, createEffect, createSignal, onMount } from "solid-js";
+import { createResource, For, Show, createSignal, onMount } from "solid-js";
 import { useParams } from "solid-start";
 import { Badge, Card } from "~/core/ui-kit";
 import { store, setStore } from "~/core/store";
 import { SolidMarkdown } from "solid-markdown";
+import type { Message, SessionWithDetails } from "~/core/types";
 
 async function fetchSessionDetails(id: string) {
   if (!id) throw new Error("Invalid session ID");
   const response = await fetch(`/api/sessions/${id}`);
   if (!response.ok) throw new Error("Failed to fetch session details");
-  const data = await response.json();
-  
-  // Merge with existing data in store to preserve real-time updates
-  setStore("sessions", id, (prev) => ({
-    ...(prev || {}),
-    ...data,
-    // Preserve messages if they were already updating via WebSocket
-    messages: (() => {
-      const existing = prev?.messages || [];
-      const incoming = data.messages || [];
-      const merged = [...existing];
-      
-      incoming.forEach((m: any) => {
-        const isDuplicate = merged.some(
-          (e: any) => e.timestamp === m.timestamp && e.content === m.content
-        );
-        if (!isDuplicate) {
-          merged.push(m);
-        }
-      });
-      
-      return merged.sort((a: any, b: any) => a.timestamp - b.timestamp);
-    })()
-  }));
-  
+  const data = (await response.json()) as SessionWithDetails;
+
+  setStore("sessions", id, (prev) => {
+    // Correctly type incoming and existing messages
+    const existing = (prev?.messages || []) as Message[];
+    const incoming = (data.messages || []) as Message[];
+
+    // Create a new merged array to avoid mutating existing state
+    const merged = [...existing];
+
+    incoming.forEach((m) => {
+      // Use Message type for comparison
+      const isDuplicate = merged.some(
+        (e) => e.timestamp === m.timestamp && e.content === m.content
+      );
+      if (!isDuplicate) {
+        merged.push(m);
+      }
+    });
+
+    // Sort using proper timestamp comparison
+    merged.sort((a, b) => {
+      const timeA =
+        typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp;
+      const timeB =
+        typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp;
+      return timeA - timeB;
+    });
+
+    return {
+      ...(prev || {}),
+      ...data,
+      messages: merged,
+    };
+  });
+
   return data;
 }
 
