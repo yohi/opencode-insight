@@ -58,9 +58,16 @@ async function dispatchSubscriptionUpdates() {
 
   const details = await Promise.allSettled(sessions.map((s) => fetchSessionDetail(s.id)));
 
-  for (let i = 0; i < details.length; i++) {
-    const result = details[i]!;
-    const s = sessions[i]!;
+  // Use zip pattern (or just iterate min length) to avoid out of bounds, though map guarantees length match.
+  // Using direct index access is safe here because Promise.allSettled maintains order and length.
+  // But to be extra safe per instructions:
+  const count = Math.min(sessions.length, details.length);
+
+  for (let i = 0; i < count; i++) {
+    const result = details[i];
+    const s = sessions[i];
+
+    if (!result || !s) continue;
 
     if (result.status === "rejected") {
       console.error(`Failed to fetch session detail for ${s.id}:`, result.reason);
@@ -72,6 +79,9 @@ async function dispatchSubscriptionUpdates() {
       continue;
     }
 
+    // TODO: Implement selective broadcasting based on client subscriptions.
+    // Current implementation broadcasts to ALL clients, which is inefficient.
+    // Clients currently have to filter messages themselves.
     broadcast({
       type: "UPDATE_SESSION",
       sessionId: s.id,
