@@ -18,13 +18,16 @@ const FORBIDDEN_KEYWORDS = [
   "truncate",
 ];
 
+const FORBIDDEN_KEYWORD_REGEXES = FORBIDDEN_KEYWORDS.map(
+  (keyword) => new RegExp(`\\b${keyword}\\b`, "i"),
+);
+
 type SqlRequestBody = {
   query?: string;
 };
 
 function hasForbiddenKeyword(query: string): boolean {
-  const lowered = query.toLowerCase();
-  return FORBIDDEN_KEYWORDS.some((keyword) => new RegExp(`\\b${keyword}\\b`).test(lowered));
+  return FORBIDDEN_KEYWORD_REGEXES.some((rx) => rx.test(query));
 }
 
 function normalizeReadonlyQuery(query: string): string {
@@ -72,12 +75,15 @@ export async function getRawData(ctx: APIContext): Promise<Response> {
     return json(tables);
   }
 
-  if (!tableNames.includes(table)) {
+  const tableLower = table.toLowerCase();
+  const canonicalName = tableNames.find((t) => t.toLowerCase() === tableLower);
+
+  if (!canonicalName) {
     return json({ error: "Invalid table name" }, { status: 400 });
   }
 
   try {
-    const safeName = table.replace(/"/g, '""');
+    const safeName = canonicalName.replace(/"/g, '""');
     const rows = readonlyQuery(`SELECT * FROM "${safeName}" LIMIT 100`);
     return json(rows);
   } catch (error) {
