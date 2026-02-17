@@ -18,14 +18,28 @@ function isSubscriptionTopic(topic: unknown): topic is SubscriptionTopic {
   return topic === "logs";
 }
 
+// Legacy topic handling: detects topics like "sessions:*"
+function isLegacyTopic(topic: unknown): boolean {
+  return typeof topic === "string" && topic.startsWith("sessions:");
+}
+
 function parseSubscriptionMessage(raw: string | Buffer): SubscriptionMessage | null {
   try {
-    const parsed = JSON.parse(toTextMessage(raw)) as Partial<SubscriptionMessage>;
-    if (
-      (parsed.type === "SUBSCRIBE" || parsed.type === "UNSUBSCRIBE") &&
-      isSubscriptionTopic(parsed.topic)
-    ) {
-      return parsed as SubscriptionMessage;
+    const text = toTextMessage(raw);
+    const parsed = JSON.parse(text) as Partial<SubscriptionMessage>;
+    
+    if (parsed.type === "SUBSCRIBE" || parsed.type === "UNSUBSCRIBE") {
+      if (isSubscriptionTopic(parsed.topic)) {
+        return parsed as SubscriptionMessage;
+      }
+      
+      if (isLegacyTopic(parsed.topic)) {
+        console.warn(`[WS] Legacy topic ignored: ${parsed.topic}. Client should upgrade to use "logs".`);
+        // Map legacy topics to current schema if appropriate, or drop.
+        // For now, we drop but log it. If "sessions:*" maps to "logs", uncomment below:
+        // return { ...parsed, topic: "logs" } as SubscriptionMessage;
+        return null;
+      }
     }
   } catch {
     // Ignore malformed inbound messages.
