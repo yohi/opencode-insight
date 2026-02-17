@@ -74,13 +74,13 @@ Transform the placeholder plugins into fully functional tools for monitoring Ope
 - **QA Policy**: Every task MUST include agent-executed QA scenarios.
 
 ### QA Policy
+
 | Deliverable Type | Verification Tool | Method |
 | :--- | :--- | :--- |
 | API/Backend | Bash (curl + jq) | Request endpoints, validate JSON structure & status codes. |
 | Frontend/UI | Manual/Visual (Agent) | Since Playwright isn't fully set up, Agent will verify via API response (SSR) and check for critical HTML elements via `curl` or `grep`. |
 
 ---
-
 
 ## Execution Strategy
 
