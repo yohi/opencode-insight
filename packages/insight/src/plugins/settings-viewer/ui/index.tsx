@@ -18,7 +18,7 @@ async function fetchSettings(): Promise<SettingsResponse> {
 }
 
 export default function SettingsViewer() {
-  const [data] = createResource(fetchSettings);
+  const [data, { refetch }] = createResource(fetchSettings);
 
   return (
     <div class="space-y-6">
@@ -37,7 +37,15 @@ export default function SettingsViewer() {
                 Error loading settings
               </div>
               <div class="text-sm opacity-90 mt-2 pl-7">{err.toString()}</div>
-              <button onClick={reset} class="mt-4 ml-7 text-sm underline hover:no-underline">Retry</button>
+              <button
+                onClick={() => {
+                  refetch();
+                  reset();
+                }}
+                class="mt-4 ml-7 text-sm underline hover:no-underline"
+              >
+                Retry
+              </button>
             </Card>
           </div>
         )}

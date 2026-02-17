@@ -14,7 +14,7 @@ export const [store, setStore] = createStore({
 
 let ws: WebSocket | null = null;
 const pendingMessages: OutboundWebSocketMessage[] = [];
-const activeSubscriptions = new Set<string>();
+const activeSubscriptions = new Map<string, OutboundWebSocketMessage>();
 
 function getSubscriptionKey(msg: OutboundWebSocketMessage): string {
   // Use a stable key for subscription tracking: type + topic (or sessionId if topic is missing)
@@ -81,7 +81,7 @@ function handleMessage(data: WebSocketMessage) {
         const current = prev || { id: data.sessionId } as SessionWithDetails;
         const incomingMessages = data.data || [];
         const existingMessages = current.messages || [];
-        
+
         return {
           ...current,
           messages: mergeMessages(existingMessages, incomingMessages),
@@ -114,18 +114,17 @@ export function connectWebSocket() {
     setStore("status", "connected");
 
     // Resubscribe to active topics
-    activeSubscriptions.forEach((subJson) => {
+    // Resubscribe to active topics
+    for (const msg of activeSubscriptions.values()) {
       try {
-        const sub = JSON.parse(subJson);
-        // We only resubscribe if it's a SUBSCRIBE message
-        if (sub.type === "SUBSCRIBE" && ws) {
-          ws.send(subJson);
+        if (msg.type === "SUBSCRIBE" && ws) {
+          ws.send(JSON.stringify(msg));
         }
       } catch (e) {
         console.error("Failed to resubscribe:", e);
       }
-    });
-    
+    }
+
     // Flush pending messages
     while (pendingMessages.length > 0) {
       const msg = pendingMessages.shift();
@@ -170,8 +169,8 @@ export function sendWebSocketMessage(message: OutboundWebSocketMessage) {
   // Track subscriptions
   if (message.type === "SUBSCRIBE") {
     const key = getSubscriptionKey(message);
-    activeSubscriptions.add(key);
-    
+    activeSubscriptions.set(key, message);
+
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
     } else {
@@ -180,7 +179,7 @@ export function sendWebSocketMessage(message: OutboundWebSocketMessage) {
   } else if (message.type === "UNSUBSCRIBE") {
     const key = getSubscriptionKey(message);
     activeSubscriptions.delete(key);
-    
+
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
     }

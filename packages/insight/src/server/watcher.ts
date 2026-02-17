@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readonlyDb as db } from "../core/db";
 import { message, session, usage } from "../core/schema";
-import { broadcast, hasSubscribers } from "./ws";
+import { broadcastToTopic, hasSubscribers } from "./ws";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import type { SessionWithDetails } from "../core/types";
 
@@ -184,17 +184,12 @@ async function dispatchSubscriptionUpdates() {
     // Send only recent slice to reduce payload size
     const recentMessages = detail.messages.slice(-MAX_RECENT_MESSAGES);
 
-    broadcast(
-      {
-        type: "UPDATE_SESSION",
-        sessionId: s.id,
-        data: recentMessages,
-        usage: detail.usage,
-      },
-      (topics) => {
-        return topics.has(topic);
-      }
-    );
+    broadcastToTopic(topic, {
+      type: "UPDATE_SESSION",
+      sessionId: s.id,
+      data: recentMessages,
+      usage: detail.usage,
+    });
   }
 }
 
