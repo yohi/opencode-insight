@@ -146,7 +146,7 @@ Wave FINAL (Verification):
   - **Blocks**: Task 7
 
   **QA Scenarios**:
-  ```
+  ```bash
   Scenario: Fetch Session Detail
     Tool: Bash (curl)
     Steps:
@@ -176,7 +176,7 @@ Wave FINAL (Verification):
   - **Depends On**: Task 1, 4
 
   **QA Scenarios**:
-  ```
+  ```bash
   Scenario: Check Session Detail UI
     Tool: Bash (curl)
     Steps:

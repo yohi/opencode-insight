@@ -123,6 +123,13 @@ export async function runSql(ctx: APIContext): Promise<Response> {
     return json({ rows });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to execute query.";
-    return json({ error: message }, { status: 400 });
+    // Simple heuristic: if message contains "allowed" or "required" or "Invalid", it's likely a validation error (400)
+    // Otherwise assume server error (500)
+    const isValidationError = 
+      message.includes("allowed") || 
+      message.includes("required") || 
+      message.includes("Invalid");
+      
+    return json({ error: message }, { status: isValidationError ? 400 : 500 });
   }
 }

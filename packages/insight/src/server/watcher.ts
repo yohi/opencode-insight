@@ -121,7 +121,7 @@ async function dispatchSubscriptionUpdates() {
   const details = sessions.map(s => ({
     ...s,
     messages: messagesBySession.get(s.id) || [],
-    usage: usageBySession.get(s.id) || null
+    usage: usageBySession.get(s.id) || undefined
   } as SessionWithDetails));
 
   // Clean up stale cache keys

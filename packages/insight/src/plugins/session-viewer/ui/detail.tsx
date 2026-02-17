@@ -111,7 +111,7 @@ export default function SessionDetail() {
                   {session()?.status || "unknown"}
                 </Badge>
                 
-                <Show when={session()?.usage}>
+                <Show when={session()?.usage} keyed>
                   {(u: Usage) => (
                     <Badge variant="default" class="font-mono">
                       {u.totalTokens?.toLocaleString() ?? 0} tokens
@@ -122,7 +122,7 @@ export default function SessionDetail() {
             </div>
 
             {/* Usage Stats Detail */}
-            <Show when={session()?.usage}>
+            <Show when={session()?.usage} keyed>
                {(u: Usage) => (
                  <div class="mt-3 flex gap-6 text-xs text-neutral-500 border-t border-neutral-100 dark:border-neutral-800 pt-2">
                    <div class="flex items-center gap-1">

@@ -87,9 +87,12 @@ export default function AgentMonitor() {
                                         {(() => {
                                             const status = agent.status as keyof typeof statusIcons;
                                             const info = statusIcons[status] || statusIcons.idle;
+                                            const toolName = agent.currentTool && agent.currentTool.trim();
                                             return (
                                                 <span class={info.color}>
-                                                    {status === "busy" ? `Executing Tool: ${agent.currentTool || "Unknown"}` : info.label}
+                                                    {status === "busy" && toolName
+                                                        ? `Executing Tool: ${toolName}`
+                                                        : info.label}
                                                 </span>
                                             );
                                         })()}
