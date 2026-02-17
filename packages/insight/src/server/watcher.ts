@@ -19,7 +19,10 @@ const DEFAULT_SESSION_LIMIT = 20;
 const MAX_RECENT_MESSAGES = 50;
 
 // Cache to track session state and avoid broadcasting unchanged sessions
-const sessionStateCache = new Map<string, { lastMessageCount: number; lastMessageId: number }>();
+const sessionStateCache = new Map<
+  string,
+  { lastMessageCount: number; lastMessageId: number; lastUsageTimestamp: number; lastUpdated: number }
+>();
 
 async function fetchSessionList(limit = DEFAULT_SESSION_LIMIT) {
   return db.select().from(session).orderBy(desc(session.updatedAt)).limit(limit);
@@ -101,6 +104,8 @@ async function dispatchSubscriptionUpdates() {
     const currentMessageCount = detail.messages.length;
     const lastMessage = detail.messages[currentMessageCount - 1];
     const currentLastMessageId = lastMessage?.id ?? 0;
+    const currentLastUsageTimestamp = detail.usage?.timestamp?.getTime() ?? 0;
+    const currentLastUpdated = s.updatedAt?.getTime() ?? 0;
 
     const cachedState = sessionStateCache.get(s.id);
 
@@ -108,7 +113,9 @@ async function dispatchSubscriptionUpdates() {
     if (
       cachedState &&
       cachedState.lastMessageCount === currentMessageCount &&
-      cachedState.lastMessageId === currentLastMessageId
+      cachedState.lastMessageId === currentLastMessageId &&
+      cachedState.lastUsageTimestamp === currentLastUsageTimestamp &&
+      cachedState.lastUpdated === currentLastUpdated
     ) {
       continue;
     }
@@ -117,6 +124,8 @@ async function dispatchSubscriptionUpdates() {
     sessionStateCache.set(s.id, {
       lastMessageCount: currentMessageCount,
       lastMessageId: currentLastMessageId,
+      lastUsageTimestamp: currentLastUsageTimestamp,
+      lastUpdated: currentLastUpdated,
     });
 
     // Send only recent slice to reduce payload size
@@ -130,6 +139,7 @@ async function dispatchSubscriptionUpdates() {
         type: "UPDATE_SESSION",
         sessionId: s.id,
         data: recentMessages,
+        usage: detail.usage,
       },
       (topics) => {
         // Basic filtering: send only if client is subscribed to "logs" (general)
