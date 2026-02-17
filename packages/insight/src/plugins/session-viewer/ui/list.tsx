@@ -26,7 +26,7 @@ export default function SessionList() {
 
   const [sessionsData] = createResource(
     () => (isClient() ? offset() : null),
-    fetchSessions
+    fetchSessions,
   );
 
   // Compute sorted sessions from store

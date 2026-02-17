@@ -1,5 +1,6 @@
 import { For, Show, createEffect, createMemo, onMount, onCleanup } from "solid-js";
-import { store, Agent, sendWebSocketMessage } from "~/core/store";
+import { store, sendWebSocketMessage } from "~/core/store";
+import type { Agent } from "~/core/types";
 import { Card, Badge, Stack } from "~/core/ui-kit";
 
 export default function AgentMonitor() {

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readonlyDb as db } from "../core/db";
 import { message, session, usage } from "../core/schema";
-import { broadcastToTopic, getSubscriptionSnapshot } from "./ws";
+import { broadcast } from "./ws";
 import { asc, desc, eq } from "drizzle-orm";
 import type { SessionWithDetails } from "../core/types";
 
@@ -15,67 +15,139 @@ function isTargetDbFile(filename: string | null, dbName: string): boolean {
   return Boolean(filename && filename.startsWith(dbName));
 }
 
-async function fetchSessionList() {
-  return db.select().from(session).orderBy(desc(session.updatedAt)).limit(20);
+const DEFAULT_SESSION_LIMIT = 20;
+const MAX_RECENT_MESSAGES = 50;
+
+// Cache to track session state and avoid broadcasting unchanged sessions
+const sessionStateCache = new Map<
+  string,
+  { lastMessageCount: number; lastMessageId: number; lastUsageTimestamp: number; lastUpdated: number }
+>();
+
+async function fetchSessionList(limit = DEFAULT_SESSION_LIMIT) {
+  return db.select().from(session).orderBy(desc(session.updatedAt)).limit(limit);
 }
 
-async function fetchSessionDetail(sessionId: string): Promise<SessionWithDetails | null> {
-  const selectedSession = await db
-    .select()
-    .from(session)
-    .where(eq(session.id, sessionId))
-    .limit(1);
+async function fetchSessionDetails(sessionIds: string[]): Promise<(SessionWithDetails | null)[]> {
+  if (sessionIds.length === 0) return [];
 
-  const targetSession = selectedSession[0];
-  if (!targetSession) {
-    return null;
-  }
+  const results = await Promise.allSettled(
+    sessionIds.map(async (sessionId) => {
+      const selectedSession = await db
+        .select()
+        .from(session)
+        .where(eq(session.id, sessionId))
+        .limit(1);
 
-  const messages = await db
-    .select()
-    .from(message)
-    .where(eq(message.sessionId, sessionId))
-    .orderBy(asc(message.timestamp));
+      const targetSession = selectedSession[0];
+      if (!targetSession) {
+        return null;
+      }
 
-  const latestUsageRows = await db
-    .select()
-    .from(usage)
-    .where(eq(usage.sessionId, sessionId))
-    .orderBy(desc(usage.timestamp))
-    .limit(1);
+      const messages = await db
+        .select()
+        .from(message)
+        .where(eq(message.sessionId, sessionId))
+        .orderBy(asc(message.timestamp));
 
-  return {
-    ...targetSession,
-    messages,
-    usage: latestUsageRows[0],
-  };
+      const latestUsageRows = await db
+        .select()
+        .from(usage)
+        .where(eq(usage.sessionId, sessionId))
+        .orderBy(desc(usage.timestamp))
+        .limit(1);
+
+      return {
+        ...targetSession,
+        messages,
+        usage: latestUsageRows[0],
+      } as SessionWithDetails;
+    })
+  );
+
+  return results.map((result, index) => {
+    if (result.status === "fulfilled") {
+      return result.value;
+    } else {
+      console.error(
+        `Failed to fetch session detail for ${sessionIds[index]}:`,
+        result.reason
+      );
+      return null;
+    }
+  });
 }
 
 async function dispatchSubscriptionUpdates() {
-  const snapshot = getSubscriptionSnapshot();
-  if (!snapshot.hasSessionListSubscribers && snapshot.sessionDetailIds.length === 0) {
-    return;
+  // Spec-aligned: broadcast per-session message updates.
+  // We don't currently track per-session subscriptions; clients can ignore updates they don't care about.
+  const sessions = await fetchSessionList();
+  const sessionIds = sessions.map((s) => s.id);
+  const details = await fetchSessionDetails(sessionIds);
+
+  // Clean up stale cache keys
+  const activeSessionIds = new Set(sessionIds);
+  for (const cachedId of sessionStateCache.keys()) {
+    if (!activeSessionIds.has(cachedId)) {
+      sessionStateCache.delete(cachedId);
+    }
   }
 
-  if (snapshot.hasSessionListSubscribers) {
-    const sessions = await fetchSessionList();
-    broadcastToTopic("sessions:list", {
-      type: "UPDATE_SESSION_LIST",
-      sessions,
-    });
-  }
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i]!;
+    const detail = details[i];
 
-  for (const sessionId of snapshot.sessionDetailIds) {
-    const detail = await fetchSessionDetail(sessionId);
     if (!detail) {
       continue;
     }
 
-    broadcastToTopic(`sessions:detail:${sessionId}`, {
-      type: "UPDATE_SESSION_DETAIL",
-      sessionId,
-      session: detail,
+    const currentMessageCount = detail.messages.length;
+    const lastMessage = detail.messages[currentMessageCount - 1];
+    const currentLastMessageId = lastMessage?.id ?? 0;
+    const currentLastUsageTimestamp = detail.usage?.timestamp?.getTime() ?? 0;
+    const currentLastUpdated = s.updatedAt?.getTime() ?? 0;
+
+    const cachedState = sessionStateCache.get(s.id);
+
+    // Skip if no changes detected
+    if (
+      cachedState &&
+      cachedState.lastMessageCount === currentMessageCount &&
+      cachedState.lastMessageId === currentLastMessageId &&
+      cachedState.lastUsageTimestamp === currentLastUsageTimestamp &&
+      cachedState.lastUpdated === currentLastUpdated
+    ) {
+      continue;
+    }
+
+    // Update cache
+    sessionStateCache.set(s.id, {
+      lastMessageCount: currentMessageCount,
+      lastMessageId: currentLastMessageId,
+      lastUsageTimestamp: currentLastUsageTimestamp,
+      lastUpdated: currentLastUpdated,
     });
+
+    // Send only recent slice to reduce payload size
+    const recentMessages = detail.messages.slice(-MAX_RECENT_MESSAGES);
+
+    // TODO: Implement selective broadcasting based on client subscriptions.
+    // Current implementation broadcasts to ALL clients, which is inefficient.
+    // Clients currently have to filter messages themselves.
+    broadcast(
+      {
+        type: "UPDATE_SESSION",
+        sessionId: s.id,
+        data: recentMessages,
+        usage: detail.usage,
+      },
+      (topics) => {
+        // Basic filtering: send only if client is subscribed to "logs" (general)
+        // or if we implement specific session subscription topics in the future.
+        // For now, "logs" implies interest in all session updates as per current spec.
+        return topics.has("logs") || topics.has(`session:${s.id}`);
+      }
+    );
   }
 }
 

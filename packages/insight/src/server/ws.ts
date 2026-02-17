@@ -1,6 +1,7 @@
 import { ServerWebSocket } from "bun";
 import * as path from "path";
 import type { SubscriptionTopic, WebSocketMessage } from "../core/types";
+import { loadPlugins } from "../core/plugin-loader.server";
 
 type SubscriptionMessage =
   | { type: "SUBSCRIBE"; topic: SubscriptionTopic }
@@ -15,20 +16,32 @@ function toTextMessage(message: string | Buffer): string {
 
 function isSubscriptionTopic(topic: unknown): topic is SubscriptionTopic {
   return (
-    topic === "sessions:list" ||
-    topic === "logs" ||
-    (typeof topic === "string" && topic.startsWith("sessions:detail:") && topic.length > "sessions:detail:".length)
+    topic === "logs" || (typeof topic === "string" && topic.startsWith("session:"))
   );
+}
+
+// Legacy topic handling: detects topics like "sessions:*"
+function isLegacyTopic(topic: unknown): boolean {
+  return typeof topic === "string" && topic.startsWith("sessions:");
 }
 
 function parseSubscriptionMessage(raw: string | Buffer): SubscriptionMessage | null {
   try {
-    const parsed = JSON.parse(toTextMessage(raw)) as Partial<SubscriptionMessage>;
-    if (
-      (parsed.type === "SUBSCRIBE" || parsed.type === "UNSUBSCRIBE") &&
-      isSubscriptionTopic(parsed.topic)
-    ) {
-      return parsed as SubscriptionMessage;
+    const text = toTextMessage(raw);
+    const parsed = JSON.parse(text) as Partial<SubscriptionMessage>;
+    
+    if (parsed.type === "SUBSCRIBE" || parsed.type === "UNSUBSCRIBE") {
+      if (isSubscriptionTopic(parsed.topic)) {
+        return parsed as SubscriptionMessage;
+      }
+      
+      if (isLegacyTopic(parsed.topic)) {
+        console.warn(`[WS] Legacy topic ignored: ${parsed.topic}. Client should upgrade to use "logs" or "session:{id}".`);
+        // Map legacy topics to current schema if appropriate, or drop.
+        // For now, we drop but log it. If "sessions:*" maps to "logs", uncomment below:
+        // return { ...parsed, topic: "logs" } as SubscriptionMessage;
+        return null;
+      }
     }
   } catch {
     // Ignore malformed inbound messages.
@@ -51,47 +64,29 @@ function removeClient(ws: ServerWebSocket<unknown>) {
   subscriptionsByClient.delete(ws);
 }
 
-export function getSubscriptionSnapshot(): {
-  hasSessionListSubscribers: boolean;
-  sessionDetailIds: string[];
-} {
-  const detailIds = new Set<string>();
-  let hasSessionListSubscribers = false;
-
-  for (const topics of subscriptionsByClient.values()) {
-    if (topics.has("sessions:list")) {
-      hasSessionListSubscribers = true;
-    }
-
-    for (const topic of topics) {
-      if (!topic.startsWith("sessions:detail:")) {
-        continue;
-      }
-
-      const sessionId = topic.slice("sessions:detail:".length);
-      if (sessionId) {
-        detailIds.add(sessionId);
-      }
-    }
-  }
-
-  return {
-    hasSessionListSubscribers,
-    sessionDetailIds: [...detailIds],
-  };
-}
-
 export const wsHandler = {
   open(ws: ServerWebSocket<unknown>) {
     clients.add(ws);
     subscriptionsByClient.set(ws, new Set<SubscriptionTopic>());
 
     console.log("Client connected");
-    
     const exposeWorkspace = process.env.INSIGHT_EXPOSE_WORKSPACE === "true";
     const workspacePath = exposeWorkspace ? process.cwd() : path.basename(process.cwd());
-    
-    send(ws, { type: "INIT", payload: { message: "Connected to Insight", workspacePath } });
+    let plugins: ReturnType<typeof loadPlugins> = [];
+
+    try {
+      plugins = loadPlugins();
+    } catch (error) {
+      console.error("Failed to load plugins:", error);
+    }
+
+    send(ws, {
+      type: "INIT",
+      payload: [
+        { type: "WORKSPACE", workspacePath },
+        ...plugins.map((plugin) => ({ type: "PLUGIN" as const, id: plugin.id, name: plugin.name })),
+      ],
+    });
   },
   message(ws: ServerWebSocket<unknown>, rawMessage: string | Buffer) {
     const message = parseSubscriptionMessage(rawMessage);

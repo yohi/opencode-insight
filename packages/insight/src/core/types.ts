@@ -23,21 +23,23 @@ export interface Agent {
   lastActive: number;
 }
 
+export type PluginState =
+  | { type: "WORKSPACE"; workspacePath: string }
+  | { type: "PLUGIN"; id: string; name: string };
+
 /**
  * WebSocket Topic Definitions
  */
 export type SubscriptionTopic =
-  | "sessions:list"
-  | `sessions:detail:${string}`
-  | "logs";
+  | "logs"
+  | `session:${string}`;
 
 /**
  * WebSocket Message Types (Discriminated Union)
  */
 export type WebSocketMessage =
-  | { type: "INIT"; payload: { message: string; workspacePath?: string } }
+  | { type: "INIT"; payload: PluginState[] }
   | { type: "SUBSCRIBE"; topic: SubscriptionTopic }
   | { type: "UNSUBSCRIBE"; topic: SubscriptionTopic }
-  | { type: "UPDATE_SESSION_LIST"; sessions: Session[] }
-  | { type: "UPDATE_SESSION_DETAIL"; sessionId: string; session: SessionWithDetails }
+  | { type: "UPDATE_SESSION"; sessionId: string; data: Message[]; usage?: Usage }
   | { type: "AGENT_LOG"; log: string };

@@ -63,35 +63,19 @@ function handleMessage(data: WebSocketMessage) {
       updateAgentStateFromLog(data.log);
       break;
 
-    case "UPDATE_SESSION_LIST":
-      // Reconcile session list: remove deleted sessions, update existing/new ones
-      setStore("sessions", (prevSessions) => {
-        const nextSessions: any = {};
-        for (const s of data.sessions) {
-          const prev = prevSessions[s.id];
-          nextSessions[s.id] = {
-            ...(prev || {}),
-            ...s,
-            messages: prev?.messages || [],
-          };
-        }
-        return nextSessions;
-      });
-      break;
-
-    case "UPDATE_SESSION_DETAIL":
-      // Explicit merge for session details
+    case "UPDATE_SESSION":
+      // Spec-compatible message: update messages for a single session.
       setStore("sessions", data.sessionId, (prev) => ({
-        ...(prev || {}),
-        ...data.session,
-        messages: data.session.messages || prev?.messages || [],
+        ...(prev || { id: data.sessionId }),
+        messages: data.data,
       }));
       break;
 
     case "INIT":
-      console.log("WebSocket initialized:", data.payload.message);
-      if (data.payload.workspacePath) {
-        setStore("workspacePath", data.payload.workspacePath);
+      for (const entry of data.payload) {
+        if (entry.type === "WORKSPACE") {
+          setStore("workspacePath", entry.workspacePath);
+        }
       }
       break;
   }
@@ -125,11 +109,7 @@ export function connectWebSocket() {
       const data = JSON.parse(event.data) as WebSocketMessage;
       handleMessage(data);
 
-      // Keep some legacy logging if needed during transition, 
-      // but the main logic is now in handleMessage
-      if (data.type === "UPDATE_SESSION_DETAIL") {
-        console.log("Session detail updated:", data.sessionId);
-      }
+      // No additional legacy handling.
     } catch (e) {
       console.error("Failed to parse message:", e);
     }
