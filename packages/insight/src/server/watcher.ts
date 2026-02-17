@@ -3,7 +3,7 @@ import path from "node:path";
 import { readonlyDb as db } from "../core/db";
 import { message, session, usage } from "../core/schema";
 import { broadcast } from "./ws";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import type { SessionWithDetails } from "../core/types";
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -82,8 +82,47 @@ async function dispatchSubscriptionUpdates() {
   // Spec-aligned: broadcast per-session message updates.
   // We don't currently track per-session subscriptions; clients can ignore updates they don't care about.
   const sessions = await fetchSessionList();
+  
+  // Optimization: Only fetch details for sessions that actually need updates or have subscribers
+  // For now, since we broadcast everything, we fetch everything, but we do it in one batch.
+  // The fetchSessionDetails function already handles batching via Promise.allSettled.
+  // However, the issue raised was about sequential DB calls inside the loop.
+  // Wait, looking at the code, fetchSessionDetails(sessionIds) is called ONCE with ALL IDs.
+  // The implementation of fetchSessionDetails does use Promise.allSettled, which runs in parallel.
+  // But inside Promise.allSettled, it runs 3 queries per session.
+  // To optimize further, we should use `inArray` queries to fetch all messages and usages for all sessions at once.
+  
   const sessionIds = sessions.map((s) => s.id);
-  const details = await fetchSessionDetails(sessionIds);
+  if (sessionIds.length === 0) return;
+
+  // Optimized fetching: Batch queries instead of N+1
+  const [allMessages, allUsages] = await Promise.all([
+    db.select().from(message).where(inArray(message.sessionId, sessionIds)).orderBy(asc(message.timestamp)),
+    db.select().from(usage).where(inArray(usage.sessionId, sessionIds)).orderBy(desc(usage.timestamp)) // We'll filter later
+  ]);
+
+  // Group by session ID
+  const messagesBySession = new Map<string, typeof allMessages>();
+  for (const msg of allMessages) {
+    if (!messagesBySession.has(msg.sessionId)) {
+      messagesBySession.set(msg.sessionId, []);
+    }
+    messagesBySession.get(msg.sessionId)!.push(msg);
+  }
+
+  const usageBySession = new Map<string, typeof allUsages[0]>();
+  for (const usg of allUsages) {
+    // Since ordered by desc timestamp, the first one we see is the latest
+    if (!usageBySession.has(usg.sessionId)) {
+      usageBySession.set(usg.sessionId, usg);
+    }
+  }
+  
+  const details = sessions.map(s => ({
+    ...s,
+    messages: messagesBySession.get(s.id) || [],
+    usage: usageBySession.get(s.id) || null
+  } as SessionWithDetails));
 
   // Clean up stale cache keys
   const activeSessionIds = new Set(sessionIds);
