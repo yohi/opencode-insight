@@ -75,7 +75,7 @@ Transform the placeholder plugins into fully functional tools for monitoring Ope
 
 ### QA Policy
 | Deliverable Type | Verification Tool | Method |
-|------------------|-------------------|--------|
+| :--- | :--- | :--- |
 | API/Backend | Bash (curl + jq) | Request endpoints, validate JSON structure & status codes. |
 | Frontend/UI | Manual/Visual (Agent) | Since Playwright isn't fully set up, Agent will verify via API response (SSR) and check for critical HTML elements via `curl` or `grep`. |
 
@@ -85,7 +85,7 @@ Transform the placeholder plugins into fully functional tools for monitoring Ope
 
 ### Parallel Execution Waves
 
-```
+```text
 Wave 1 (Foundation & Backend Logic):
 ├── Task 1: Shared UI Components (Card, Badge, CodeBlock) [visual-engineering]
 ├── Task 2: Settings Viewer API & Logic (Hierarchical Loading) [quick]
