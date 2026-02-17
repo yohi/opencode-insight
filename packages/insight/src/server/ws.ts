@@ -15,7 +15,9 @@ function toTextMessage(message: string | Buffer): string {
 }
 
 function isSubscriptionTopic(topic: unknown): topic is SubscriptionTopic {
-  return topic === "logs";
+  return (
+    topic === "logs" || (typeof topic === "string" && topic.startsWith("session:"))
+  );
 }
 
 // Legacy topic handling: detects topics like "sessions:*"
@@ -34,7 +36,7 @@ function parseSubscriptionMessage(raw: string | Buffer): SubscriptionMessage | n
       }
       
       if (isLegacyTopic(parsed.topic)) {
-        console.warn(`[WS] Legacy topic ignored: ${parsed.topic}. Client should upgrade to use "logs".`);
+        console.warn(`[WS] Legacy topic ignored: ${parsed.topic}. Client should upgrade to use "logs" or "session:{id}".`);
         // Map legacy topics to current schema if appropriate, or drop.
         // For now, we drop but log it. If "sessions:*" maps to "logs", uncomment below:
         // return { ...parsed, topic: "logs" } as SubscriptionMessage;
