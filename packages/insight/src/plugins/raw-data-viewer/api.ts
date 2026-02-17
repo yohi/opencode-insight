@@ -30,6 +30,14 @@ function hasForbiddenKeyword(query: string): boolean {
   return FORBIDDEN_KEYWORD_REGEXES.some((rx) => rx.test(query));
 }
 
+function isTablesPath(pathname: string): boolean {
+  return pathname.endsWith("/api/raw-data/tables") || pathname.endsWith("/api/raw-data");
+}
+
+function isQueryPath(pathname: string): boolean {
+  return pathname.endsWith("/api/raw-data/query") || pathname.endsWith("/api/sql");
+}
+
 function normalizeReadonlyQuery(query: string): string {
   const trimmed = query.trim();
 
@@ -42,58 +50,63 @@ function normalizeReadonlyQuery(query: string): string {
   }
 
   if (hasForbiddenKeyword(trimmed)) {
-    throw new Error("Forbidden SQL keyword detected.");
+    throw new Error("Write operations are not allowed.");
   }
 
   const limitMatches = [...trimmed.matchAll(/\blimit\s+(\d+)\b/gi)];
-  if (limitMatches.length > 0) {
-    const lastMatch = limitMatches[limitMatches.length - 1]!;
-    const limit = parseInt(lastMatch[1]!, 10);
-    const MAX_LIMIT = 100;
-    if (limit > MAX_LIMIT) {
-      const index = lastMatch.index!;
-      const before = trimmed.slice(0, index);
-      const after = trimmed.slice(index + lastMatch[0].length);
-      return `${before}LIMIT ${MAX_LIMIT}${after}`;
-    }
+  if (limitMatches.length === 0) {
+    return `${trimmed} LIMIT 100`;
+  }
+
+  const lastMatch = limitMatches[limitMatches.length - 1]!;
+  const limit = parseInt(lastMatch[1]!, 10);
+  if (!Number.isFinite(limit)) {
+    throw new Error("Invalid LIMIT value.");
+  }
+
+  if (limit <= 100) {
     return trimmed;
   }
 
-  return `SELECT * FROM (${trimmed}) AS __query LIMIT 100`;
+  const index = lastMatch.index!;
+  const before = trimmed.slice(0, index);
+  const after = trimmed.slice(index + lastMatch[0].length);
+  return `${before}LIMIT 100${after}`;
 }
 
 export async function getRawData(ctx: APIContext): Promise<Response> {
-  const url = new URL(ctx.request.url);
-  const table = url.searchParams.get("table");
-
-  const tables = readonlyQuery(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
-  ) as Array<{ name: string }>;
-  const tableNames = tables.map((t) => t.name);
-
-  if (!table) {
-    return json(tables);
-  }
-
-  const tableLower = table.toLowerCase();
-  const canonicalName = tableNames.find((t) => t.toLowerCase() === tableLower);
-
-  if (!canonicalName) {
-    return json({ error: "Invalid table name" }, { status: 400 });
+  if (ctx.request.method !== "GET") {
+    return json({ error: "Method not allowed" }, { status: 405 });
   }
 
   try {
-    const safeName = canonicalName.replace(/"/g, '""');
-    const rows = readonlyQuery(`SELECT * FROM "${safeName}" LIMIT 100`);
-    return json(rows);
+    const url = new URL(ctx.request.url);
+    if (!isTablesPath(url.pathname)) {
+      return json({ error: "Not Found" }, { status: 404 });
+    }
+
+    const tables = readonlyQuery(
+      "SELECT name FROM sqlite_master WHERE type='table'",
+    ) as Array<{ name: string }>;
+
+    return json(tables);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to query table.";
-    return json({ error: message }, { status: 400 });
+    const message = error instanceof Error ? error.message : "Failed to fetch tables.";
+    return json({ error: message }, { status: 500 });
   }
 }
 
 export async function runSql(ctx: APIContext): Promise<Response> {
+  if (ctx.request.method !== "POST") {
+    return json({ error: "Method not allowed" }, { status: 405 });
+  }
+
   try {
+    const url = new URL(ctx.request.url);
+    if (!isQueryPath(url.pathname)) {
+      return json({ error: "Not Found" }, { status: 404 });
+    }
+
     const body = (await ctx.request.json()) as SqlRequestBody;
     const query = body.query?.trim() ?? "";
 
