@@ -16,6 +16,10 @@ function isTargetDbFile(filename: string | null, dbName: string): boolean {
 }
 
 const DEFAULT_SESSION_LIMIT = 20;
+const MAX_RECENT_MESSAGES = 50;
+
+// Cache to track session state and avoid broadcasting unchanged sessions
+const sessionStateCache = new Map<string, { lastMessageCount: number; lastMessageId: number }>();
 
 async function fetchSessionList(limit = DEFAULT_SESSION_LIMIT) {
   return db.select().from(session).orderBy(desc(session.updatedAt)).limit(limit);
@@ -86,6 +90,30 @@ async function dispatchSubscriptionUpdates() {
       continue;
     }
 
+    const currentMessageCount = detail.messages.length;
+    const lastMessage = detail.messages[currentMessageCount - 1];
+    const currentLastMessageId = lastMessage?.id ?? 0;
+
+    const cachedState = sessionStateCache.get(s.id);
+
+    // Skip if no changes detected
+    if (
+      cachedState &&
+      cachedState.lastMessageCount === currentMessageCount &&
+      cachedState.lastMessageId === currentLastMessageId
+    ) {
+      continue;
+    }
+
+    // Update cache
+    sessionStateCache.set(s.id, {
+      lastMessageCount: currentMessageCount,
+      lastMessageId: currentLastMessageId,
+    });
+
+    // Send only recent slice to reduce payload size
+    const recentMessages = detail.messages.slice(-MAX_RECENT_MESSAGES);
+
     // TODO: Implement selective broadcasting based on client subscriptions.
     // Current implementation broadcasts to ALL clients, which is inefficient.
     // Clients currently have to filter messages themselves.
@@ -93,13 +121,13 @@ async function dispatchSubscriptionUpdates() {
       {
         type: "UPDATE_SESSION",
         sessionId: s.id,
-        data: detail.messages,
+        data: recentMessages,
       },
       (topics) => {
         // Basic filtering: send only if client is subscribed to "logs" (general)
         // or if we implement specific session subscription topics in the future.
         // For now, "logs" implies interest in all session updates as per current spec.
-        return topics.has("logs");
+        return topics.has("logs") || topics.has(`session:${s.id}`);
       }
     );
   }
