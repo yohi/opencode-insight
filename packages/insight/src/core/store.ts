@@ -36,6 +36,14 @@ export const [store, setStore] = createStore({
 
 let ws: WebSocket | null = null;
 const pendingMessages: OutboundWebSocketMessage[] = [];
+const activeSubscriptions = new Set<string>();
+
+function getSubscriptionKey(msg: OutboundWebSocketMessage): string | null {
+  if (msg.type === "SUBSCRIBE" || msg.type === "UNSUBSCRIBE") {
+    return JSON.stringify({ type: msg.type, ...("sessionId" in msg ? { sessionId: msg.sessionId } : {}) });
+  }
+  return null;
+}
 
 // Helper to parse logs and update agent state
 function updateAgentStateFromLog(log: string) {
@@ -117,6 +125,19 @@ export function connectWebSocket() {
 
   ws.onopen = () => {
     setStore("status", "connected");
+
+    // Resubscribe to active topics
+    activeSubscriptions.forEach((subJson) => {
+      try {
+        const sub = JSON.parse(subJson);
+        // We only resubscribe if it's a SUBSCRIBE message
+        if (sub.type === "SUBSCRIBE" && ws) {
+          ws.send(subJson);
+        }
+      } catch (e) {
+        console.error("Failed to resubscribe:", e);
+      }
+    });
     
     // Flush pending messages
     while (pendingMessages.length > 0) {
@@ -159,6 +180,17 @@ export function disconnect() {
 }
 
 export function sendWebSocketMessage(message: OutboundWebSocketMessage) {
+  // Track subscriptions
+  if (message.type === "SUBSCRIBE") {
+    activeSubscriptions.add(JSON.stringify(message));
+  } else if (message.type === "UNSUBSCRIBE") {
+    // To remove, we need to find the matching SUBSCRIBE message.
+    // However, the spec says we should remove it. 
+    // Usually UNSUBSCRIBE has the same payload structure except the type.
+    const subMessage = { ...message, type: "SUBSCRIBE" };
+    activeSubscriptions.delete(JSON.stringify(subMessage));
+  }
+
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(message));
   } else {
