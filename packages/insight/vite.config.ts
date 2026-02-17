@@ -12,7 +12,7 @@ export default defineConfig({
     },
   },
   ssr: {
-    external: ["bun:sqlite"],
+    external: ["bun:sqlite", /^opencode-plugin-/],
   },
   optimizeDeps: {
     exclude: ["bun:sqlite"],
