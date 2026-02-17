@@ -37,6 +37,10 @@ function hasForbiddenKeyword(query: string): boolean {
   return FORBIDDEN_KEYWORD_REGEXES.some((rx) => rx.test(query));
 }
 
+function containsSqlComment(query: string): boolean {
+  return /--|(?:\/\*)/.test(query);
+}
+
 function isTablesPath(pathname: string): boolean {
   return pathname.endsWith("/api/raw-data/tables") || pathname.endsWith("/api/raw-data");
 }
@@ -46,11 +50,11 @@ function isQueryPath(pathname: string): boolean {
 }
 
 function normalizeReadonlyQuery(query: string): string {
-  // Remove SQL comments to prevent bypassing LIMIT enforcement
-  const cleaned = query
-    .replace(/--.*$/gm, "") // Remove single-line comments
-    .replace(/\/\*[\s\S]*?\*\//g, "") // Remove multi-line comments
-    .trim();
+  if (containsSqlComment(query)) {
+    throw new ValidationError("SQL comments are not allowed.");
+  }
+
+  const cleaned = query.trim();
 
   if (!/^select\b/i.test(cleaned)) {
     throw new ValidationError("Only SELECT queries are allowed.");
