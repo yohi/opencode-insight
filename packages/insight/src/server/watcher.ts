@@ -15,8 +15,10 @@ function isTargetDbFile(filename: string | null, dbName: string): boolean {
   return Boolean(filename && filename.startsWith(dbName));
 }
 
-async function fetchSessionList() {
-  return db.select().from(session).orderBy(desc(session.updatedAt)).limit(10);
+const DEFAULT_SESSION_LIMIT = 20;
+
+async function fetchSessionList(limit = DEFAULT_SESSION_LIMIT) {
+  return db.select().from(session).orderBy(desc(session.updatedAt)).limit(limit);
 }
 
 async function fetchSessionDetail(sessionId: string): Promise<SessionWithDetails | null> {
@@ -86,6 +88,11 @@ async function dispatchSubscriptionUpdates() {
       type: "UPDATE_SESSION",
       sessionId: s.id,
       data: detail.messages,
+    }, (topics) => {
+      // Basic filtering: send only if client is subscribed to "logs" (general)
+      // or if we implement specific session subscription topics in the future.
+      // For now, "logs" implies interest in all session updates as per current spec.
+      return topics.has("logs");
     });
   }
 }
