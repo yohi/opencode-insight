@@ -39,23 +39,27 @@ function isQueryPath(pathname: string): boolean {
 }
 
 function normalizeReadonlyQuery(query: string): string {
-  const trimmed = query.trim();
+  // Remove SQL comments to prevent bypassing LIMIT enforcement
+  const cleaned = query
+    .replace(/--.*$/gm, "") // Remove single-line comments
+    .replace(/\/\*[\s\S]*?\*\//g, "") // Remove multi-line comments
+    .trim();
 
-  if (!/^select\b/i.test(trimmed)) {
+  if (!/^select\b/i.test(cleaned)) {
     throw new Error("Only SELECT queries are allowed.");
   }
 
-  if (trimmed.includes(";")) {
+  if (cleaned.includes(";")) {
     throw new Error("Multiple statements are not allowed.");
   }
 
-  if (hasForbiddenKeyword(trimmed)) {
+  if (hasForbiddenKeyword(cleaned)) {
     throw new Error("Write operations are not allowed.");
   }
 
-  const limitMatches = [...trimmed.matchAll(/\blimit\s+(\d+)\b/gi)];
+  const limitMatches = [...cleaned.matchAll(/\blimit\s+(\d+)\b/gi)];
   if (limitMatches.length === 0) {
-    return `${trimmed} LIMIT 100`;
+    return `${cleaned} LIMIT 100`;
   }
 
   const lastMatch = limitMatches[limitMatches.length - 1]!;
@@ -65,12 +69,12 @@ function normalizeReadonlyQuery(query: string): string {
   }
 
   if (limit <= 100) {
-    return trimmed;
+    return cleaned;
   }
 
   const index = lastMatch.index!;
-  const before = trimmed.slice(0, index);
-  const after = trimmed.slice(index + lastMatch[0].length);
+  const before = cleaned.slice(0, index);
+  const after = cleaned.slice(index + lastMatch[0].length);
   return `${before}LIMIT 100${after}`;
 }
 
@@ -89,7 +93,7 @@ export async function getRawData(ctx: APIContext): Promise<Response> {
       "SELECT name FROM sqlite_master WHERE type='table'",
     ) as Array<{ name: string }>;
 
-    return json(tables);
+    return json({ tables });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch tables.";
     return json({ error: message }, { status: 500 });
