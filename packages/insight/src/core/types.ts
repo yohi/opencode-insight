@@ -31,7 +31,8 @@ export type PluginState =
  * WebSocket Topic Definitions
  */
 export type SubscriptionTopic =
-  | "logs";
+  | "logs"
+  | `session:${string}`;
 
 /**
  * WebSocket Message Types (Discriminated Union)
