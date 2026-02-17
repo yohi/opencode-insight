@@ -8,7 +8,7 @@ import type { Message, SessionWithDetails } from "~/core/types";
 function normalizeTimestampToMs(value: string | number): number {
   if (typeof value === "string") {
     const parsed = new Date(value).getTime();
-    if (isNaN(parsed)) return Date.now();
+    if (isNaN(parsed)) return 0; // Deterministic fallback
     return parsed;
   }
   // Assume seconds if small (heuristic: less than 10 billion, covering up to year 2286)
@@ -33,7 +33,10 @@ async function fetchSessionDetails(id: string) {
     incoming.forEach((m) => {
       // Use Message type for comparison
       const isDuplicate = merged.some(
-        (e) => e.timestamp === m.timestamp && e.content === m.content && e.role === m.role
+        (e) =>
+          normalizeTimestampToMs(e.timestamp) === normalizeTimestampToMs(m.timestamp) &&
+          e.content === m.content &&
+          e.role === m.role
       );
       if (!isDuplicate) {
         merged.push(m);
