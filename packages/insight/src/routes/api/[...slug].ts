@@ -27,14 +27,9 @@ function matchPattern(pattern: string, path: string): Record<string, string> | n
   const params: Record<string, string> = {};
 
   for (let i = 0; i < patternParts.length; i++) {
-    const p = patternParts[i];
-    const v = pathParts[i];
-    if (!p) {
-      return null;
-    }
-    if (!v) {
-      return null;
-    }
+    const p = patternParts[i]!;
+    const v = pathParts[i]!;
+
     if (p.startsWith(":")) {
       const key = p.slice(1);
       if (!key) {
@@ -71,6 +66,9 @@ function resolveHandler(slug: string): MatchResult | null {
   }
 
   // Second pass: pattern match (e.g., "sessions/:id").
+  let bestMatch: MatchResult | null = null;
+  let bestMatchPluginName: string | null = null;
+
   for (const plugin of plugins) {
     if (!plugin.api) {
       continue;
@@ -78,12 +76,25 @@ function resolveHandler(slug: string): MatchResult | null {
     for (const [pattern, handler] of Object.entries(plugin.api)) {
       const params = matchPattern(pattern, path);
       if (params) {
-        return { handler, params };
+        // Ensure handler is a function (runtime check) and narrow type
+        if (typeof handler !== "function") {
+          console.warn(`[API] Invalid handler for pattern "${pattern}" in plugin "${plugin.name}"`);
+          continue;
+        }
+
+        if (bestMatch) {
+          console.warn(
+            `[API] Collision detected for path "${path}". Pattern "${pattern}" (plugin: ${plugin.name}) matches, but another handler was already found (plugin: ${bestMatchPluginName}). Keeping the first match.`
+          );
+        } else {
+          bestMatch = { handler: handler as (ctx: APIContext) => Promise<Response>, params };
+          bestMatchPluginName = plugin.name;
+        }
       }
     }
   }
 
-  return null;
+  return bestMatch;
 }
 
 async function dispatch(event: APIEvent): Promise<Response> {
@@ -121,5 +132,11 @@ export async function PATCH(event: APIEvent) {
 }
 
 export async function DELETE(event: APIEvent) {
+  return dispatch(event);
+}
+
+export async function OPTIONS(event: APIEvent) {
+  // CORS Preflight - let the handler manage it or dispatch normally if implemented
+  // Note: dispatch() receives all methods. Plugin handlers must inspect event.request.method
   return dispatch(event);
 }
