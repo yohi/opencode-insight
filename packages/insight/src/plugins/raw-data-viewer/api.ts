@@ -24,7 +24,7 @@ type SqlRequestBody = {
 
 function hasForbiddenKeyword(query: string): boolean {
   const lowered = query.toLowerCase();
-  return FORBIDDEN_KEYWORDS.some((keyword) => new RegExp(`\\b${keyword}\\b`, "i").test(lowered));
+  return FORBIDDEN_KEYWORDS.some((keyword) => new RegExp(`\\b${keyword}\\b`).test(lowered));
 }
 
 function normalizeReadonlyQuery(query: string): string {
