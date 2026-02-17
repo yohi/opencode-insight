@@ -1,4 +1,4 @@
-import { Suspense } from "solid-js";
+import { ErrorBoundary, Suspense } from "solid-js";
 import { Body, FileRoutes, Head, Html, Meta, Routes, Scripts, Title } from "solid-start";
 import Layout from "./ui/layout";
 import "./app.css";
@@ -12,13 +12,15 @@ export default function App() {
         <Meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Body>
-        <Suspense>
-          <Layout>
-            <Routes>
-              <FileRoutes />
-            </Routes>
-          </Layout>
-        </Suspense>
+        <ErrorBoundary fallback={(err) => <div class="p-10 text-red-500">Error: {err.toString()}</div>}>
+          <Suspense>
+            <Layout>
+              <Routes>
+                <FileRoutes />
+              </Routes>
+            </Layout>
+          </Suspense>
+        </ErrorBoundary>
         <Scripts />
       </Body>
     </Html>
