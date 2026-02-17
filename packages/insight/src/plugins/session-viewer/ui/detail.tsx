@@ -7,8 +7,14 @@ import type { Message, SessionWithDetails } from "~/core/types";
 
 function normalizeTimestampToMs(value: string | number): number {
   if (typeof value === "string") {
+    // Check for empty or whitespace-only strings
+    const trimmed = value.trim();
+    if (trimmed === "") {
+      return 0; // Deterministic fallback
+    }
+
     // Attempt numeric coercion first
-    const num = Number(value);
+    const num = Number(trimmed);
     if (!isNaN(num)) {
       // Heuristic: less than 10 billion (up to year 2286) -> seconds, else milliseconds
       return num < 10000000000 ? num * 1000 : num;
@@ -36,17 +42,21 @@ async function fetchSessionDetails(id: string) {
 
     // Create a new merged array to avoid mutating existing state
     const merged = [...existing];
+    
+    // Create a Set for efficient O(1) duplicate checking
+    // Key format: timestamp_ms|content|role
+    const existingKeys = new Set(
+      merged.map(
+        (m) =>
+          `${normalizeTimestampToMs(m.timestamp)}|${m.content}|${m.role}`
+      )
+    );
 
     incoming.forEach((m) => {
-      // Use Message type for comparison
-      const isDuplicate = merged.some(
-        (e) =>
-          normalizeTimestampToMs(e.timestamp) === normalizeTimestampToMs(m.timestamp) &&
-          e.content === m.content &&
-          e.role === m.role
-      );
-      if (!isDuplicate) {
+      const key = `${normalizeTimestampToMs(m.timestamp)}|${m.content}|${m.role}`;
+      if (!existingKeys.has(key)) {
         merged.push(m);
+        existingKeys.add(key);
       }
     });
 
