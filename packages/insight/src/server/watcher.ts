@@ -24,7 +24,7 @@ async function fetchSessionList(limit = DEFAULT_SESSION_LIMIT) {
 async function fetchSessionDetails(sessionIds: string[]): Promise<(SessionWithDetails | null)[]> {
   if (sessionIds.length === 0) return [];
 
-  return Promise.all(
+  const results = await Promise.allSettled(
     sessionIds.map(async (sessionId) => {
       const selectedSession = await db
         .select()
@@ -54,9 +54,21 @@ async function fetchSessionDetails(sessionIds: string[]): Promise<(SessionWithDe
         ...targetSession,
         messages,
         usage: latestUsageRows[0],
-      };
+      } as SessionWithDetails;
     })
   );
+
+  return results.map((result, index) => {
+    if (result.status === "fulfilled") {
+      return result.value;
+    } else {
+      console.error(
+        `Failed to fetch session detail for ${sessionIds[index]}:`,
+        result.reason
+      );
+      return null;
+    }
+  });
 }
 
 async function dispatchSubscriptionUpdates() {
