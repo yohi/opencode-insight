@@ -48,15 +48,6 @@ function removeClient(ws: ServerWebSocket<unknown>) {
   subscriptionsByClient.delete(ws);
 }
 
-export function hasTopicSubscribers(topic: SubscriptionTopic): boolean {
-  for (const topics of subscriptionsByClient.values()) {
-    if (topics.has(topic)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 export const wsHandler = {
   open(ws: ServerWebSocket<unknown>) {
     clients.add(ws);
