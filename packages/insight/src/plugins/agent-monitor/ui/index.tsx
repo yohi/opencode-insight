@@ -25,6 +25,13 @@ export default function AgentMonitor() {
 
   const agentsList = createMemo(() => Object.values(store.agents));
 
+  const statusIcons = {
+    thinking: { icon: "thinking", label: "Thinking...", color: "text-purple-600" },
+    busy: { icon: "tool", label: "Executing Tool", color: "text-blue-600" },
+    idle: { icon: "idle", label: "Waiting for instructions", color: "text-gray-600" },
+    error: { icon: "error", label: "Error encountered", color: "text-red-600" },
+  } as const;
+
   const getStatusColor = (status: Agent["status"]) => {
     switch (status) {
       case "busy": return "bg-blue-100 text-blue-800 border-blue-200";
@@ -77,18 +84,15 @@ export default function AgentMonitor() {
                                 <div class="space-y-1">
                                     <div class="text-xs text-gray-500 uppercase">Current Activity</div>
                                     <div class="text-sm font-medium truncate">
-                                        <Show when={agent.status === "thinking"}>
-                                            <span class="text-purple-600">Thinking...</span>
-                                        </Show>
-                                        <Show when={agent.status === "busy"}>
-                                            <span class="text-blue-600">Executing Tool: {agent.currentTool || "Unknown"}</span>
-                                        </Show>
-                                        <Show when={agent.status === "idle"}>
-                                            <span class="text-gray-600">Waiting for instructions</span>
-                                        </Show>
-                                        <Show when={agent.status === "error"}>
-                                            <span class="text-red-600">Error encountered</span>
-                                        </Show>
+                                        {(() => {
+                                            const status = agent.status as keyof typeof statusIcons;
+                                            const info = statusIcons[status] || statusIcons.idle;
+                                            return (
+                                                <span class={info.color}>
+                                                    {status === "busy" ? `Executing Tool: ${agent.currentTool || "Unknown"}` : info.label}
+                                                </span>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
 

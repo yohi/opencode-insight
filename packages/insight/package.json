@@ -25,10 +25,11 @@
     "solid-js": "^1.9.11",
     "solid-markdown": "^2.1.1",
     "solid-start": "^0.3.11",
-    "tailwindcss": "^4.1.18",
-    "ws": "^8.19.0",
     "solid-start-bun": "^0.3.11",
-    "solid-start-node": "^0.3.11"
+    "solid-start-node": "^0.3.11",
+    "tailwind-scrollbar": "^4.0.2",
+    "tailwindcss": "^4.1.18",
+    "ws": "^8.19.0"
   },
   "peerDependencies": {
     "typescript": "^5.9.3"
