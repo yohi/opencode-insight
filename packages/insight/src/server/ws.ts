@@ -70,7 +70,7 @@ export const wsHandler = {
     console.log("Client connected");
     const exposeWorkspace = process.env.INSIGHT_EXPOSE_WORKSPACE === "true";
     const workspacePath = exposeWorkspace ? process.cwd() : path.basename(process.cwd());
-    let plugins = [];
+    let plugins: ReturnType<typeof loadPlugins> = [];
 
     try {
       plugins = loadPlugins();
