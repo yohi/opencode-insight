@@ -21,62 +21,55 @@ async function fetchSessionList(limit = DEFAULT_SESSION_LIMIT) {
   return db.select().from(session).orderBy(desc(session.updatedAt)).limit(limit);
 }
 
-async function fetchSessionDetail(sessionId: string): Promise<SessionWithDetails | null> {
-  const selectedSession = await db
-    .select()
-    .from(session)
-    .where(eq(session.id, sessionId))
-    .limit(1);
+async function fetchSessionDetails(sessionIds: string[]): Promise<(SessionWithDetails | null)[]> {
+  if (sessionIds.length === 0) return [];
 
-  const targetSession = selectedSession[0];
-  if (!targetSession) {
-    return null;
-  }
+  return Promise.all(
+    sessionIds.map(async (sessionId) => {
+      const selectedSession = await db
+        .select()
+        .from(session)
+        .where(eq(session.id, sessionId))
+        .limit(1);
 
-  const messages = await db
-    .select()
-    .from(message)
-    .where(eq(message.sessionId, sessionId))
-    .orderBy(asc(message.timestamp));
+      const targetSession = selectedSession[0];
+      if (!targetSession) {
+        return null;
+      }
 
-  const latestUsageRows = await db
-    .select()
-    .from(usage)
-    .where(eq(usage.sessionId, sessionId))
-    .orderBy(desc(usage.timestamp))
-    .limit(1);
+      const messages = await db
+        .select()
+        .from(message)
+        .where(eq(message.sessionId, sessionId))
+        .orderBy(asc(message.timestamp));
 
-  return {
-    ...targetSession,
-    messages,
-    usage: latestUsageRows[0],
-  };
+      const latestUsageRows = await db
+        .select()
+        .from(usage)
+        .where(eq(usage.sessionId, sessionId))
+        .orderBy(desc(usage.timestamp))
+        .limit(1);
+
+      return {
+        ...targetSession,
+        messages,
+        usage: latestUsageRows[0],
+      };
+    })
+  );
 }
 
 async function dispatchSubscriptionUpdates() {
   // Spec-aligned: broadcast per-session message updates.
   // We don't currently track per-session subscriptions; clients can ignore updates they don't care about.
   const sessions = await fetchSessionList();
+  const sessionIds = sessions.map((s) => s.id);
+  const details = await fetchSessionDetails(sessionIds);
 
-  const details = await Promise.allSettled(sessions.map((s) => fetchSessionDetail(s.id)));
+  for (let i = 0; i < sessions.length; i++) {
+    const s = sessions[i]!;
+    const detail = details[i];
 
-  // Use zip pattern (or just iterate min length) to avoid out of bounds, though map guarantees length match.
-  // Using direct index access is safe here because Promise.allSettled maintains order and length.
-  // But to be extra safe per instructions:
-  const count = Math.min(sessions.length, details.length);
-
-  for (let i = 0; i < count; i++) {
-    const result = details[i];
-    const s = sessions[i];
-
-    if (!result || !s) continue;
-
-    if (result.status === "rejected") {
-      console.error(`Failed to fetch session detail for ${s.id}:`, result.reason);
-      continue;
-    }
-
-    const detail = result.value;
     if (!detail) {
       continue;
     }
@@ -84,16 +77,19 @@ async function dispatchSubscriptionUpdates() {
     // TODO: Implement selective broadcasting based on client subscriptions.
     // Current implementation broadcasts to ALL clients, which is inefficient.
     // Clients currently have to filter messages themselves.
-    broadcast({
-      type: "UPDATE_SESSION",
-      sessionId: s.id,
-      data: detail.messages,
-    }, (topics) => {
-      // Basic filtering: send only if client is subscribed to "logs" (general)
-      // or if we implement specific session subscription topics in the future.
-      // For now, "logs" implies interest in all session updates as per current spec.
-      return topics.has("logs");
-    });
+    broadcast(
+      {
+        type: "UPDATE_SESSION",
+        sessionId: s.id,
+        data: detail.messages,
+      },
+      (topics) => {
+        // Basic filtering: send only if client is subscribed to "logs" (general)
+        // or if we implement specific session subscription topics in the future.
+        // For now, "logs" implies interest in all session updates as per current spec.
+        return topics.has("logs");
+      }
+    );
   }
 }
 
