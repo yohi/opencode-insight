@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, Show } from "solid-js";
+import { createResource, createSignal, For, Show, onMount } from "solid-js";
 import { A } from "solid-start";
 import { Badge, Card, Input } from "~/core/ui-kit";
 import { store, setStore } from "~/core/store";
@@ -20,7 +20,14 @@ async function fetchSessions(offset: number) {
 
 export default function SessionList() {
   const [offset, setOffset] = createSignal(0);
-  const [sessionsData] = createResource(offset, fetchSessions);
+  const [isClient, setIsClient] = createSignal(false);
+
+  onMount(() => setIsClient(true));
+
+  const [sessionsData] = createResource(
+    () => (isClient() ? offset() : null),
+    fetchSessions
+  );
 
   // Compute sorted sessions from store
   const sessions = () => Object.values(store.sessions).sort((a, b) => {

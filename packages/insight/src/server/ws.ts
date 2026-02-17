@@ -1,4 +1,5 @@
 import { ServerWebSocket } from "bun";
+import * as path from "path";
 import type { SubscriptionTopic, WebSocketMessage } from "../core/types";
 
 type SubscriptionMessage =
@@ -86,7 +87,11 @@ export const wsHandler = {
     subscriptionsByClient.set(ws, new Set<SubscriptionTopic>());
 
     console.log("Client connected");
-    send(ws, { type: "INIT", payload: { message: "Connected to Insight", workspacePath: undefined } });
+    
+    const exposeWorkspace = process.env.INSIGHT_EXPOSE_WORKSPACE === "true";
+    const workspacePath = exposeWorkspace ? process.cwd() : path.basename(process.cwd());
+    
+    send(ws, { type: "INIT", payload: { message: "Connected to Insight", workspacePath } });
   },
   message(ws: ServerWebSocket<unknown>, rawMessage: string | Buffer) {
     const message = parseSubscriptionMessage(rawMessage);
