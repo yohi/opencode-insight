@@ -1,7 +1,7 @@
 import { json } from "solid-start/api";
 import { readonlyDb as db } from "~/core/db";
-import { message, session } from "~/core/schema";
-import { desc, eq } from "drizzle-orm";
+import { message, session, usage } from "~/core/schema";
+import { asc, desc, eq } from "drizzle-orm";
 import type { APIContext } from "~/core/plugin";
 
 export async function getSessions(ctx: APIContext): Promise<Response> {
@@ -25,7 +25,7 @@ export async function getSessions(ctx: APIContext): Promise<Response> {
 export async function getSessionDetails(ctx: APIContext): Promise<Response> {
   const sessionId = ctx.params.id;
   if (!sessionId) {
-    return json({ error: "Session not found" }, { status: 404 });
+    return json({ error: "Session ID is required" }, { status: 400 });
   }
 
   const sessionData = await db.select().from(session).where(eq(session.id, sessionId)).limit(1);
@@ -37,10 +37,18 @@ export async function getSessionDetails(ctx: APIContext): Promise<Response> {
     .select()
     .from(message)
     .where(eq(message.sessionId, sessionId))
-    .orderBy(message.timestamp);
+    .orderBy(asc(message.timestamp));
+
+  const latestUsageRows = await db
+    .select()
+    .from(usage)
+    .where(eq(usage.sessionId, sessionId))
+    .orderBy(desc(usage.timestamp))
+    .limit(1);
 
   return json({
     ...sessionData[0],
     messages,
+    usage: latestUsageRows[0] || null,
   });
 }
