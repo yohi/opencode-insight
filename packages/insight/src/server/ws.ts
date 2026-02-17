@@ -1,4 +1,5 @@
 import { ServerWebSocket } from "bun";
+import * as path from "path";
 import type { SubscriptionTopic, WebSocketMessage } from "../core/types";
 import { loadPlugins } from "../core/plugin-loader.server";
 
@@ -62,11 +63,14 @@ export const wsHandler = {
     subscriptionsByClient.set(ws, new Set<SubscriptionTopic>());
 
     console.log("Client connected");
+    const exposeWorkspace = process.env.INSIGHT_EXPOSE_WORKSPACE === "true";
+    const workspacePath = exposeWorkspace ? process.cwd() : path.basename(process.cwd());
     const plugins = loadPlugins();
+
     send(ws, {
       type: "INIT",
       payload: [
-        { type: "WORKSPACE", workspacePath: process.cwd() },
+        { type: "WORKSPACE", workspacePath },
         ...plugins.map((plugin) => ({ type: "PLUGIN" as const, id: plugin.id, name: plugin.name })),
       ],
     });
