@@ -55,8 +55,19 @@ async function dispatchSubscriptionUpdates() {
   // Spec-aligned: broadcast per-session message updates.
   // We don't currently track per-session subscriptions; clients can ignore updates they don't care about.
   const sessions = await fetchSessionList();
-  for (const s of sessions) {
-    const detail = await fetchSessionDetail(s.id);
+
+  const details = await Promise.allSettled(sessions.map((s) => fetchSessionDetail(s.id)));
+
+  for (let i = 0; i < details.length; i++) {
+    const result = details[i]!;
+    const s = sessions[i]!;
+
+    if (result.status === "rejected") {
+      console.error(`Failed to fetch session detail for ${s.id}:`, result.reason);
+      continue;
+    }
+
+    const detail = result.value;
     if (!detail) {
       continue;
     }
