@@ -33,7 +33,7 @@ async function fetchSessionDetails(id: string) {
     incoming.forEach((m) => {
       // Use Message type for comparison
       const isDuplicate = merged.some(
-        (e) => e.timestamp === m.timestamp && e.content === m.content
+        (e) => e.timestamp === m.timestamp && e.content === m.content && e.role === m.role
       );
       if (!isDuplicate) {
         merged.push(m);
