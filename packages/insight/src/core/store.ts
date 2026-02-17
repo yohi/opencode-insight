@@ -1,5 +1,6 @@
 import { createStore } from "solid-js/store";
 import type { SessionWithDetails, Agent, WebSocketMessage, Message } from "./types";
+import { mergeMessages } from "./utils";
 
 type OutboundWebSocketMessage = Extract<WebSocketMessage, { type: "SUBSCRIBE" | "UNSUBSCRIBE" }>;
 
@@ -96,10 +97,16 @@ function handleMessage(data: WebSocketMessage) {
 
     case "UPDATE_SESSION":
       // Spec-compatible message: update messages for a single session.
-      setStore("sessions", data.sessionId, (prev) => ({
-        ...(prev || { id: data.sessionId }),
-        messages: mergeMessages(prev?.messages || [], data.data),
-      }));
+      setStore("sessions", data.sessionId, (prev) => {
+        const current = prev || { id: data.sessionId } as SessionWithDetails;
+        const incomingMessages = data.data || [];
+        const existingMessages = current.messages || [];
+        
+        return {
+          ...current,
+          messages: mergeMessages(existingMessages, incomingMessages),
+        };
+      });
       break;
 
     case "INIT":

@@ -26,18 +26,19 @@ export async function getSettings(_ctx: APIContext): Promise<Response> {
     if (!rawPath) continue;
     const configPath = expandHome(rawPath);
 
-    if (existsSync(configPath)) {
-      try {
-        const content = await fs.readFile(configPath, "utf-8");
-        console.log(`[SettingsViewer] Found config at: ${configPath}`);
-        return json({
-          content,
-          path: configPath,
-          found: true,
-        });
-      } catch (err) {
+    try {
+      const content = await fs.readFile(configPath, "utf-8");
+      console.log(`[SettingsViewer] Found config at: ${configPath}`);
+      return json({
+        content,
+        path: configPath,
+        found: true,
+      });
+    } catch (err) {
+      if ((err as { code?: string }).code !== "ENOENT") {
         console.error(`[SettingsViewer] Error reading config at ${configPath}:`, err);
       }
+      // If ENOENT (file not found), continue to next path
     }
   }
 
