@@ -65,7 +65,13 @@ export const wsHandler = {
     console.log("Client connected");
     const exposeWorkspace = process.env.INSIGHT_EXPOSE_WORKSPACE === "true";
     const workspacePath = exposeWorkspace ? process.cwd() : path.basename(process.cwd());
-    const plugins = loadPlugins();
+    let plugins = [];
+
+    try {
+      plugins = loadPlugins();
+    } catch (error) {
+      console.error("Failed to load plugins:", error);
+    }
 
     send(ws, {
       type: "INIT",
