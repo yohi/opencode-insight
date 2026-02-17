@@ -66,11 +66,14 @@ Transform the placeholder plugins into fully functional tools for monitoring Ope
 
 ## Verification Strategy
 
-> **ZERO HUMAN INTERVENTION** — ALL verification is agent-executed.
+> **ZERO HUMAN INTERVENTION** — ALL verification is agent-executed. No human-in-the-loop manual checks.
 
 ### Test Decision
 - **Infrastructure exists**: No (SolidStart project, but no test runner setup yet).
-- **Automated tests**: **Tests-after**. We will rely on `bun test` if applicable, but primarily **Agent-Executed QA Scenarios** using `curl` and `grep` for API, and `playwright` (simulated via manual verification steps if playwright not configured, but ideally automated).
+- **Automated tests**: **Tests-after**. We will rely on `bun test` if applicable.
+- **Agent-Executed QA Scenarios**: Agents will automatically invoke tools to verify functionality.
+    - **Primary**: `playwright` for full E2E verification.
+    - **Fallback**: If Playwright is not available, agents MUST use `curl` to verify API status/JSON structure and `grep` to inspect static HTML output for critical elements.
 - **QA Policy**: Every task MUST include agent-executed QA scenarios.
 
 ### QA Policy
@@ -78,7 +81,7 @@ Transform the placeholder plugins into fully functional tools for monitoring Ope
 | Deliverable Type | Verification Tool | Method |
 | :--- | :--- | :--- |
 | API/Backend | Bash (curl + jq) | Request endpoints, validate JSON structure & status codes. |
-| Frontend/UI | Manual/Visual (Agent) | Since Playwright isn't fully set up, Agent will verify via API response (SSR) and check for critical HTML elements via `curl` or `grep`. |
+| Frontend/UI | Automated HTML Verification | Agent will verify via API response (SSR) and check for critical HTML elements via `curl` or `grep`. |
 
 ---
 
@@ -115,6 +118,7 @@ Wave FINAL (Verification):
 | 6 | 1, 3 | F1 | 2 |
 | 7 | 1, 4 | F1 | 2 |
 | F1 | 5, 6, 7 | — | FINAL |
+| F2 | 5, 6, 7 | — | FINAL |
 
 ### Agent Dispatch Summary
 
@@ -200,5 +204,30 @@ Wave FINAL (Verification):
 ---
 
 ## Commit Strategy
-- Commit after each Task completion.
+
+### 1. Scope Naming Convention
+- Use the following scopes for commit messages:
+    - `feat(ui)`: Shared UI components
+    - `feat(settings)`: Settings viewer feature
+    - `feat(raw-data)`: Raw data viewer feature
+    - `feat(session)`: Session viewer feature
+    - `fix(api)`: Backend/API fixes
+    - `chore(plan)`: Plan updates
+
+### 2. Pre-PR Commit Hygiene
+- **Squash**: Use when multiple small "WIP" commits were made for a single logical feature.
+- **Rebase**: Always rebase on `main` before creating a PR to ensure a clean history.
+- **Keep History**: Only for significant milestones or distinct logical steps that are useful to trace back.
+
+### 3. Breaking Changes
+- If a commit introduces a breaking change (e.g. API schema change), add `BREAKING CHANGE:` in the footer.
+- Example:
+  ```text
+  feat(api): change settings response structure
+
+  BREAKING CHANGE: The `settings` endpoint now returns a nested object.
+  ```
+
+### Standard Commit Format
 - Message format: `feat(insight): implement [feature name]`
+- Example: `feat(session): add markdown rendering support`
