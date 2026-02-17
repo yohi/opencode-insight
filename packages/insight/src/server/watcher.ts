@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readonlyDb as db } from "../core/db";
 import { message, session, usage } from "../core/schema";
-import { broadcast } from "./ws";
+import { broadcast, hasSubscribers } from "./ws";
 import { asc, desc, eq } from "drizzle-orm";
 import type { SessionWithDetails } from "../core/types";
 
@@ -79,11 +79,8 @@ async function fetchSessionDetails(sessionIds: string[]): Promise<(SessionWithDe
 }
 
 async function dispatchSubscriptionUpdates() {
-  // Spec-aligned: broadcast per-session message updates.
-  // We don't currently track per-session subscriptions; clients can ignore updates they don't care about.
   const sessions = await fetchSessionList();
   const sessionIds = sessions.map((s) => s.id);
-  const details = await fetchSessionDetails(sessionIds);
 
   // Clean up stale cache keys
   const activeSessionIds = new Set(sessionIds);
@@ -93,9 +90,14 @@ async function dispatchSubscriptionUpdates() {
     }
   }
 
-  for (let i = 0; i < sessions.length; i++) {
-    const s = sessions[i]!;
-    const detail = details[i];
+  for (const s of sessions) {
+    const topic = `session:${s.id}`;
+    if (!hasSubscribers(topic)) {
+      continue;
+    }
+
+    const details = await fetchSessionDetails([s.id]);
+    const detail = details[0];
 
     if (!detail) {
       continue;
@@ -131,9 +133,6 @@ async function dispatchSubscriptionUpdates() {
     // Send only recent slice to reduce payload size
     const recentMessages = detail.messages.slice(-MAX_RECENT_MESSAGES);
 
-    // TODO: Implement selective broadcasting based on client subscriptions.
-    // Current implementation broadcasts to ALL clients, which is inefficient.
-    // Clients currently have to filter messages themselves.
     broadcast(
       {
         type: "UPDATE_SESSION",
@@ -142,10 +141,7 @@ async function dispatchSubscriptionUpdates() {
         usage: detail.usage,
       },
       (topics) => {
-        // Basic filtering: send only if client is subscribed to "logs" (general)
-        // or if we implement specific session subscription topics in the future.
-        // For now, "logs" implies interest in all session updates as per current spec.
-        return topics.has("logs") || topics.has(`session:${s.id}`);
+        return topics.has(topic);
       }
     );
   }

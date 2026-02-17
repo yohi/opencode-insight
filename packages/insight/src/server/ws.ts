@@ -9,6 +9,7 @@ type SubscriptionMessage =
 
 const clients = new Set<ServerWebSocket<unknown>>();
 const subscriptionsByClient = new Map<ServerWebSocket<unknown>, Set<SubscriptionTopic>>();
+const clientsByTopic = new Map<SubscriptionTopic, Set<ServerWebSocket<unknown>>>();
 
 function toTextMessage(message: string | Buffer): string {
   return typeof message === "string" ? message : message.toString("utf8");
@@ -59,8 +60,71 @@ function getOrCreateSubscriptions(ws: ServerWebSocket<unknown>): Set<Subscriptio
   return topics;
 }
 
+function getOrCreateTopicClients(topic: SubscriptionTopic): Set<ServerWebSocket<unknown>> {
+  let topicClients = clientsByTopic.get(topic);
+  if (!topicClients) {
+    topicClients = new Set<ServerWebSocket<unknown>>();
+    clientsByTopic.set(topic, topicClients);
+  }
+  return topicClients;
+}
+
+function subscribeClientToTopic(ws: ServerWebSocket<unknown>, topic: SubscriptionTopic) {
+  const topics = getOrCreateSubscriptions(ws);
+  const wasAdded = !topics.has(topic);
+  topics.add(topic);
+
+  if (!wasAdded) {
+    return;
+  }
+
+  const topicClients = getOrCreateTopicClients(topic);
+  topicClients.add(ws);
+  console.debug(`[WS] SUBSCRIBE topic=${topic} subscribers=${topicClients.size}`);
+}
+
+function unsubscribeClientFromTopic(ws: ServerWebSocket<unknown>, topic: SubscriptionTopic) {
+  const topics = subscriptionsByClient.get(ws);
+  if (!topics || !topics.has(topic)) {
+    return;
+  }
+
+  topics.delete(topic);
+
+  const topicClients = clientsByTopic.get(topic);
+  if (!topicClients) {
+    return;
+  }
+
+  topicClients.delete(ws);
+  if (topicClients.size === 0) {
+    clientsByTopic.delete(topic);
+  }
+  console.debug(`[WS] UNSUBSCRIBE topic=${topic} subscribers=${topicClients.size}`);
+}
+
+function removeClientFromAllTopics(ws: ServerWebSocket<unknown>) {
+  const topics = subscriptionsByClient.get(ws);
+  if (!topics) {
+    return;
+  }
+
+  for (const topic of topics) {
+    const topicClients = clientsByTopic.get(topic);
+    if (!topicClients) {
+      continue;
+    }
+
+    topicClients.delete(ws);
+    if (topicClients.size === 0) {
+      clientsByTopic.delete(topic);
+    }
+  }
+}
+
 function removeClient(ws: ServerWebSocket<unknown>) {
   clients.delete(ws);
+  removeClientFromAllTopics(ws);
   subscriptionsByClient.delete(ws);
 }
 
@@ -94,11 +158,10 @@ export const wsHandler = {
       return;
     }
 
-    const topics = getOrCreateSubscriptions(ws);
     if (message.type === "SUBSCRIBE") {
-      topics.add(message.topic);
+      subscribeClientToTopic(ws, message.topic);
     } else {
-      topics.delete(message.topic);
+      unsubscribeClientFromTopic(ws, message.topic);
     }
   },
   close(ws: ServerWebSocket<unknown>) {
@@ -138,5 +201,16 @@ export function broadcast(
 }
 
 export function broadcastToTopic(topic: SubscriptionTopic, message: WebSocketMessage) {
-  broadcast(message, (topics) => topics.has(topic));
+  const topicClients = clientsByTopic.get(topic);
+  if (!topicClients || topicClients.size === 0) {
+    return;
+  }
+
+  for (const client of topicClients) {
+    send(client, message);
+  }
+}
+
+export function hasSubscribers(topic: SubscriptionTopic): boolean {
+  return (clientsByTopic.get(topic)?.size ?? 0) > 0;
 }
