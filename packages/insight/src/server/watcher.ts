@@ -122,7 +122,7 @@ async function dispatchSubscriptionUpdates() {
   }
 
   const allDetails = new Map<string, SessionWithDetails>();
-  for (const s of sessions) {
+  for (const s of sessionsWithSubscribers) {
     allDetails.set(s.id, {
       ...s,
       messages: messagesBySession.get(s.id) || [],
@@ -131,6 +131,10 @@ async function dispatchSubscriptionUpdates() {
   }
 
   // Clean up stale cache keys
+  // We strictly synchronize the cache with currently active subscriptions (activeSessionIds derived from sessionIds).
+  // If a session has no subscribers, we remove its state from sessionStateCache to prevent memory leaks.
+  // Trade-off: If a client re-subscribes to a session later, it will result in a cache miss,
+  // potentially skipping the initial change detection optimization, but ensuring data consistency.
   const activeSessionIds = new Set(sessionIds);
   for (const cachedId of sessionStateCache.keys()) {
     if (!activeSessionIds.has(cachedId)) {

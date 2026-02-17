@@ -71,11 +71,53 @@ function normalizeReadonlyQuery(query: string): string {
     throw new ValidationError("Only SELECT queries are allowed.");
   }
 
-  if (cleaned.includes(";")) {
+  // Scanner to handle quotes and check for top-level semicolons
+  let inSingle = false;
+  let inDouble = false;
+  let inBacktick = false;
+  let sanitized = "";
+  let hasTopLevelSemicolon = false;
+
+  for (let i = 0; i < cleaned.length; i++) {
+    const char = cleaned[i];
+
+    // Handle escapes (naive but effective for this validation)
+    if (cleaned[i] === '\\') {
+      // If we are in any quote mode, consume the escaped character
+      // If we are not in quote mode, backslashes are just characters (unlikely in valid SQL outside strings but fine here)
+      // Actually, careful: if we have passed a backslash, we should skip the next char for the purpose of state change
+      // But we still want to preserve length/content for the 'sanitized' string as much as possible, 
+      // or just ensure we don't trip on keywords.
+      // Let's just treat the pair as safe characters.
+      sanitized += "  ";
+      i++; // Skip next char
+      continue;
+    }
+
+    if (inSingle) {
+      if (char === "'") inSingle = false;
+      sanitized += " ";
+    } else if (inDouble) {
+      if (char === '"') inDouble = false;
+      sanitized += " ";
+    } else if (inBacktick) {
+      if (char === "`") inBacktick = false;
+      sanitized += " ";
+    } else {
+      if (char === "'") inSingle = true;
+      else if (char === '"') inDouble = true;
+      else if (char === "`") inBacktick = true;
+      else if (char === ";") hasTopLevelSemicolon = true;
+
+      sanitized += char;
+    }
+  }
+
+  if (hasTopLevelSemicolon) {
     throw new ValidationError("Multiple statements are not allowed.");
   }
 
-  if (hasForbiddenKeyword(cleaned)) {
+  if (hasForbiddenKeyword(sanitized)) {
     throw new ValidationError("Write operations are not allowed.");
   }
 
