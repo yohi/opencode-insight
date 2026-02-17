@@ -41,5 +41,5 @@ export type WebSocketMessage =
   | { type: "INIT"; payload: PluginState[] }
   | { type: "SUBSCRIBE"; topic: SubscriptionTopic }
   | { type: "UNSUBSCRIBE"; topic: SubscriptionTopic }
-  | { type: "UPDATE_SESSION"; sessionId: string; data: Message[] }
+  | { type: "UPDATE_SESSION"; sessionId: string; data: Message[]; usage?: Usage }
   | { type: "AGENT_LOG"; log: string };
