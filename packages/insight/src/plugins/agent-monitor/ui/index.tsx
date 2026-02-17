@@ -23,7 +23,12 @@ export default function AgentMonitor() {
     }
   });
 
-  const agentsList = createMemo(() => Object.values(store.agents));
+  const agentsList = createMemo(() => {
+    return Object.values(store.agents).sort((a, b) => {
+      // Sort by lastActive descending (newest first)
+      return (b.lastActive || 0) - (a.lastActive || 0);
+    });
+  });
 
 
   const statusIcons = {

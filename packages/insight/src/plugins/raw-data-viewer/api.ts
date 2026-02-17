@@ -49,6 +49,17 @@ function isQueryPath(pathname: string): boolean {
   return pathname.endsWith("/api/raw-data/query") || pathname.endsWith("/api/sql");
 }
 
+/**
+ * Normalizes a query to ensure it is read-only and limited.
+ *
+ * WARNING: This function does NOT protect against SQL injection via table/column identifiers.
+ * It assumes that table/column names have been validated or escaped by the caller.
+ * It strictly enforces SELECT-only queries and LIMIT constraints.
+ *
+ * @param query The raw SQL query string.
+ * @returns The normalized safe query string.
+ * @throws ValidationError if the query contains forbidden keywords or patterns.
+ */
 function normalizeReadonlyQuery(query: string): string {
   if (containsSqlComment(query)) {
     throw new ValidationError("SQL comments are not allowed.");

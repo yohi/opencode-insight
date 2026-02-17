@@ -80,7 +80,7 @@ async function fetchSessionDetails(sessionIds: string[]): Promise<(SessionWithDe
 
 async function dispatchSubscriptionUpdates() {
   const sessions = await fetchSessionList();
-  
+
   // Optimization: Only fetch details for sessions that actually need updates or have subscribers
   // For now, since we broadcast everything, we fetch everything, but we do it in one batch.
   // The fetchSessionDetails function already handles batching via Promise.allSettled.
@@ -89,8 +89,13 @@ async function dispatchSubscriptionUpdates() {
   // The implementation of fetchSessionDetails does use Promise.allSettled, which runs in parallel.
   // But inside Promise.allSettled, it runs 3 queries per session.
   // To optimize further, we should use `inArray` queries to fetch all messages and usages for all sessions at once.
-  
-  const sessionIds = sessions.map((s) => s.id);
+
+  // Filter sessions that actually have subscribers to avoid over-fetching
+  const sessionsWithSubscribers = sessions.filter((s) =>
+    hasSubscribers(`session:${s.id}`)
+  );
+
+  const sessionIds = sessionsWithSubscribers.map((s) => s.id);
   if (sessionIds.length === 0) return;
 
   // Optimized fetching: Batch queries instead of N+1
@@ -115,7 +120,7 @@ async function dispatchSubscriptionUpdates() {
       usageBySession.set(usg.sessionId, usg);
     }
   }
-  
+
   const allDetails = new Map<string, SessionWithDetails>();
   for (const s of sessions) {
     allDetails.set(s.id, {

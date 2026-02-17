@@ -16,11 +16,14 @@ let ws: WebSocket | null = null;
 const pendingMessages: OutboundWebSocketMessage[] = [];
 const activeSubscriptions = new Set<string>();
 
-function getSubscriptionKey(msg: OutboundWebSocketMessage): string | null {
-  if (msg.type === "SUBSCRIBE" || msg.type === "UNSUBSCRIBE") {
-    return JSON.stringify({ type: msg.type, ...("sessionId" in msg ? { sessionId: msg.sessionId } : {}) });
-  }
-  return null;
+function getSubscriptionKey(msg: OutboundWebSocketMessage): string {
+  // Use a stable key for subscription tracking: type + topic (or sessionId if topic is missing)
+  // For UNSUBSCRIBE, we want the same key as SUBSCRIBE to remove it.
+  const base = {
+    ...("sessionId" in msg ? { sessionId: msg.sessionId } : {}),
+    ...("topic" in msg ? { topic: msg.topic } : {})
+  };
+  return JSON.stringify(base);
 }
 
 // Helper to parse logs and update agent state
@@ -166,19 +169,28 @@ export function disconnect() {
 export function sendWebSocketMessage(message: OutboundWebSocketMessage) {
   // Track subscriptions
   if (message.type === "SUBSCRIBE") {
-    activeSubscriptions.add(JSON.stringify(message));
+    const key = getSubscriptionKey(message);
+    activeSubscriptions.add(key);
+    
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    } else {
+      pendingMessages.push(message);
+    }
   } else if (message.type === "UNSUBSCRIBE") {
-    // To remove, we need to find the matching SUBSCRIBE message.
-    // However, the spec says we should remove it. 
-    // Usually UNSUBSCRIBE has the same payload structure except the type.
-    const subMessage = { ...message, type: "SUBSCRIBE" };
-    activeSubscriptions.delete(JSON.stringify(subMessage));
-  }
-
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(message));
+    const key = getSubscriptionKey(message);
+    activeSubscriptions.delete(key);
+    
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    }
+    // No need to queue unsubscribe if disconnected
   } else {
-    pendingMessages.push(message);
-    console.warn("WebSocket is not connected. Message queued:", message);
+    // Other messages
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    } else {
+      pendingMessages.push(message);
+    }
   }
 }

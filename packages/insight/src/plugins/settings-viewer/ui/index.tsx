@@ -22,39 +22,55 @@ export default function SettingsViewer() {
 
   return (
     <div class="space-y-6">
-      <div class="flex items-center justify-between">
-        <h2 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
-          Settings Viewer
-        </h2>
-        <Show when={data()} fallback={<Badge variant="warning">Loading...</Badge>}>
-          {(settings) => (
-            <Badge variant={settings().found ? "success" : "error"}>
-              {settings().found ? "Loaded" : "Not Found"}
-            </Badge>
-          )}
-        </Show>
-      </div>
-
       <ErrorBoundary
         fallback={(err, reset) => (
-          <Card class="border-red-200 bg-red-50 text-red-800 dark:bg-red-900/20 dark:border-red-900 dark:text-red-200 p-4">
-            <div class="font-medium flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-              Error loading settings
-            </div>
-            <div class="text-sm opacity-90 mt-2 pl-7">{err.toString()}</div>
-            <button onClick={reset} class="mt-4 ml-7 text-sm underline hover:no-underline">Retry</button>
-          </Card>
+          <div class="space-y-6">
+             <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+                  Settings Viewer
+                </h2>
+                <Badge variant="error">Error</Badge>
+             </div>
+             <Card class="border-red-200 bg-red-50 text-red-800 dark:bg-red-900/20 dark:border-red-900 dark:text-red-200 p-4">
+                <div class="font-medium flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                  Error loading settings
+                </div>
+                <div class="text-sm opacity-90 mt-2 pl-7">{err.toString()}</div>
+                <button onClick={reset} class="mt-4 ml-7 text-sm underline hover:no-underline">Retry</button>
+             </Card>
+          </div>
         )}
       >
         <Suspense
           fallback={
-            <div class="animate-pulse space-y-4">
-              <div class="h-8 bg-neutral-200 dark:bg-neutral-800 rounded w-1/3"></div>
-              <div class="h-64 bg-neutral-200 dark:bg-neutral-800 rounded-xl"></div>
-            </div>
+             <div class="space-y-6">
+               <div class="flex items-center justify-between">
+                 <h2 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+                   Settings Viewer
+                 </h2>
+                 <Badge variant="warning">Loading...</Badge>
+               </div>
+               <div class="animate-pulse space-y-4">
+                 <div class="h-8 bg-neutral-200 dark:bg-neutral-800 rounded w-1/3"></div>
+                 <div class="h-64 bg-neutral-200 dark:bg-neutral-800 rounded-xl"></div>
+               </div>
+             </div>
           }
         >
+          <div class="flex items-center justify-between">
+            <h2 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+              Settings Viewer
+            </h2>
+            <Show when={data()} fallback={<Badge variant="warning">Loading...</Badge>}>
+              {(settings) => (
+                <Badge variant={settings().found ? "success" : "error"}>
+                  {settings().found ? "Loaded" : "Not Found"}
+                </Badge>
+              )}
+            </Show>
+          </div>
+
           <Show when={data()}>
             {(settings) => (
               <>
@@ -88,7 +104,6 @@ export default function SettingsViewer() {
                     <Card class="p-0 overflow-hidden border-neutral-200 dark:border-neutral-800">
                       <CodeBlock
                         code={settings().content}
-                        language="json"
                         class="border-0 rounded-none bg-transparent"
                       />
                     </Card>
