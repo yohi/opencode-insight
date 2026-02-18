@@ -30,12 +30,12 @@ function parseSubscriptionMessage(raw: string | Buffer): SubscriptionMessage | n
   try {
     const text = toTextMessage(raw);
     const parsed = JSON.parse(text) as Partial<SubscriptionMessage>;
-    
+
     if (parsed.type === "SUBSCRIBE" || parsed.type === "UNSUBSCRIBE") {
       if (isSubscriptionTopic(parsed.topic)) {
         return parsed as SubscriptionMessage;
       }
-      
+
       if (isLegacyTopic(parsed.topic)) {
         console.warn(`[WS] Legacy topic ignored: ${parsed.topic}. Client should upgrade to use "logs" or "session:{id}".`);
         // Map legacy topics to current schema if appropriate, or drop.
@@ -129,17 +129,17 @@ function removeClient(ws: ServerWebSocket<unknown>) {
 }
 
 export const wsHandler = {
-  open(ws: ServerWebSocket<unknown>) {
+  async open(ws: ServerWebSocket<unknown>) {
     clients.add(ws);
     subscriptionsByClient.set(ws, new Set<SubscriptionTopic>());
 
     console.log("Client connected");
     const exposeWorkspace = process.env.INSIGHT_EXPOSE_WORKSPACE === "true";
     const workspacePath = exposeWorkspace ? process.cwd() : path.basename(process.cwd());
-    let plugins: ReturnType<typeof loadPlugins> = [];
+    let plugins: Awaited<ReturnType<typeof loadPlugins>> = [];
 
     try {
-      plugins = loadPlugins();
+      plugins = await loadPlugins();
     } catch (error) {
       console.error("Failed to load plugins:", error);
     }

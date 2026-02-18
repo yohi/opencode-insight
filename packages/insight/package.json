@@ -21,6 +21,7 @@
     "autoprefixer": "^10.4.24",
     "better-sqlite3": "^12.6.2",
     "drizzle-orm": "^0.45.1",
+    "jsonc-parser": "^3.3.1",
     "postcss": "^8.5.6",
     "solid-js": "^1.9.11",
     "solid-markdown": "^2.1.1",

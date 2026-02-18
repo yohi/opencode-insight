@@ -1,26 +1,11 @@
 import { json } from "solid-start/api";
 import fs from "node:fs/promises";
-import { existsSync } from "node:fs";
-import path from "node:path";
-import os from "node:os";
-import type { APIContext } from "~/core/plugin";
 
-/**
- * Resolves ~ to home directory
- */
-function expandHome(filepath: string): string {
-  if (filepath.startsWith("~")) {
-    return path.join(os.homedir(), filepath.slice(1));
-  }
-  return filepath;
-}
+import type { APIContext } from "~/core/plugin";
+import { expandHome, CONFIG_SEARCH_PATHS } from "~/core/path-utils";
 
 export async function getSettings(_ctx: APIContext): Promise<Response> {
-  const searchPaths = [
-    process.env.OPENCODE_CONFIG_PATH,
-    path.join(process.cwd(), "opencode.jsonc"),
-    "~/.config/opencode/opencode.jsonc",
-  ];
+  const searchPaths = CONFIG_SEARCH_PATHS;
 
   for (const rawPath of searchPaths) {
     if (!rawPath) continue;

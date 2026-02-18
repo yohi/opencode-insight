@@ -8,14 +8,14 @@ async function fetchTables() {
   const response = await fetch("/api/raw-data/tables");
   if (!response.ok) throw new Error("Failed to fetch tables");
   const data = await response.json();
-  
+
   if (Array.isArray(data)) {
     return data.map((item: any) => (typeof item === 'string' ? item : item.name));
   }
   if (data.tables && Array.isArray(data.tables)) {
     return data.tables.map((item: any) => (typeof item === 'string' ? item : item.name));
   }
-  
+
   throw new Error("Invalid response format for tables");
 }
 
@@ -86,7 +86,7 @@ export default function RawDataViewer() {
     isClient,
     async (ready) => (ready ? fetchTables() : []),
   );
-  
+
   const [query, setQuery] = createSignal("SELECT * FROM session LIMIT 100");
   const [queryResult, setQueryResult] = createSignal<DataRow[]>([]);
   const [queryError, setQueryError] = createSignal("");
@@ -126,7 +126,7 @@ export default function RawDataViewer() {
   return (
     <div class="h-[calc(100vh-6rem)] flex gap-4 p-4">
       {/* Sidebar: Table List */}
-      <Card class="w-64 flex flex-col overflow-hidden !p-0">
+      <Card class="w-64 flex flex-col overflow-hidden p-0!">
         <div class="p-4 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900">
           <h2 class="font-semibold text-neutral-800 dark:text-neutral-200">Tables</h2>
         </div>
@@ -140,11 +140,10 @@ export default function RawDataViewer() {
                       <button
                         type="button"
                         onClick={() => onTableClick(table)}
-                        class={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
-                          selectedTable() === table
+                        class={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${selectedTable() === table
                             ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-medium"
                             : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                        }`}
+                          }`}
                       >
                         {table}
                       </button>
@@ -162,7 +161,7 @@ export default function RawDataViewer() {
         <Card class="flex-none p-4">
           <div class="flex justify-between items-center mb-2">
             <h2 class="font-semibold text-neutral-800 dark:text-neutral-200">Raw SQL Query</h2>
-             <Badge variant="warning">Read-Only</Badge>
+            <Badge variant="warning">Read-Only</Badge>
           </div>
           <div class="relative">
             <textarea
@@ -172,7 +171,7 @@ export default function RawDataViewer() {
               placeholder="SELECT * FROM table LIMIT 10"
             />
             <div class="absolute bottom-3 right-3">
-               <button
+              <button
                 type="button"
                 disabled={queryLoading()}
                 onClick={() => handleRunQuery()}
@@ -195,14 +194,14 @@ export default function RawDataViewer() {
         </Card>
 
         <Card class="flex-1 overflow-hidden flex flex-col min-h-0 !p-0">
-           <div class="flex-none p-4 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 flex justify-between items-center">
+          <div class="flex-none p-4 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 flex justify-between items-center">
             <h2 class="font-semibold text-neutral-800 dark:text-neutral-200">Results</h2>
             <Show when={queryResult().length > 0}>
-               <span class="text-xs text-neutral-500 font-mono">{queryResult().length} rows</span>
+              <span class="text-xs text-neutral-500 font-mono">{queryResult().length} rows</span>
             </Show>
           </div>
           <div class="flex-1 overflow-auto p-4">
-             <DataTable rows={queryResult()} />
+            <DataTable rows={queryResult()} />
           </div>
         </Card>
       </div>
