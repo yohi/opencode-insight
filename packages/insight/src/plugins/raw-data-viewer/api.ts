@@ -61,9 +61,7 @@ function isQueryPath(pathname: string): boolean {
  * @throws ValidationError if the query contains forbidden keywords or patterns.
  */
 function normalizeReadonlyQuery(query: string): string {
-  if (containsSqlComment(query)) {
-    throw new ValidationError("SQL comments are not allowed.");
-  }
+
 
   const cleaned = query.trim();
 
@@ -82,8 +80,6 @@ function normalizeReadonlyQuery(query: string): string {
 
   for (let i = 0; i < cleaned.length; i++) {
     const char = cleaned[i];
-
-    // Handle escapes (naive but effective for this validation)
 
 
     if (inSingle) {
@@ -121,6 +117,10 @@ function normalizeReadonlyQuery(query: string): string {
     }
   }
 
+  if (containsSqlComment(sanitized)) {
+    throw new ValidationError("SQL comments are not allowed.");
+  }
+
   if (hasForbiddenKeyword(sanitized)) {
     throw new ValidationError("Write operations are not allowed.");
   }
@@ -129,6 +129,10 @@ function normalizeReadonlyQuery(query: string): string {
     ...sanitized.matchAll(/\blimit\s+(?:(\d+)\s*,\s*(\d+)|(\d+)(?:\s+offset\s+(\d+))?)\b/gi),
   ];
   if (limitMatches.length === 0) {
+    // If "LIMIT" keyword exists but didn't match the strict regex (e.g. negative numbers or syntax error), reject it.
+    if (/\blimit\b/i.test(sanitized)) {
+      throw new ValidationError("Invalid LIMIT value.");
+    }
     return `${cleaned} LIMIT 100`;
   }
 

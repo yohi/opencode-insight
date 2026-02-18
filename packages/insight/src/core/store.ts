@@ -17,8 +17,8 @@ const pendingMessages: OutboundWebSocketMessage[] = [];
 const activeSubscriptions = new Map<string, OutboundWebSocketMessage>();
 
 function getSubscriptionKey(msg: OutboundWebSocketMessage): string {
-  // Use a stable key for subscription tracking: type + topic (or sessionId if topic is missing)
-  // For UNSUBSCRIBE, we want the same key as SUBSCRIBE to remove it.
+  // Use a stable key for subscription tracking: sessionId or topic.
+  // SUBSCRIBE and UNSUBSCRIBE produce the same key by omitting the message type.
   const base = {
     ...("sessionId" in msg ? { sessionId: msg.sessionId } : {}),
     ...("topic" in msg ? { topic: msg.topic } : {})
@@ -114,7 +114,7 @@ export function connectWebSocket() {
     setStore("status", "connected");
 
     // Resubscribe to active topics
-    // Resubscribe to active topics
+
     for (const msg of activeSubscriptions.values()) {
       try {
         if (msg.type === "SUBSCRIBE" && ws) {
@@ -173,15 +173,6 @@ export function sendWebSocketMessage(message: OutboundWebSocketMessage) {
 
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
-    } else {
-      const isActive = activeSubscriptions.has(key);
-      const isPending = pendingMessages.some(
-        (m) =>
-          m.type === "SUBSCRIBE" && getSubscriptionKey(m) === key
-      );
-      if (!isActive && !isPending) {
-        pendingMessages.push(message);
-      }
     }
   } else if (message.type === "UNSUBSCRIBE") {
     const key = getSubscriptionKey(message);
@@ -190,13 +181,12 @@ export function sendWebSocketMessage(message: OutboundWebSocketMessage) {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
     } else {
-      // Remove any pending SUBSCRIBE messages for this key so we don't send stale subscribes on reconnect
-      const pendingIndex = pendingMessages.findIndex(
-        (m) =>
-          m.type === "SUBSCRIBE" && getSubscriptionKey(m) === key
-      );
-      if (pendingIndex !== -1) {
-        pendingMessages.splice(pendingIndex, 1);
+      // Remove all pending SUBSCRIBE messages for this key so we don't send stale subscribes on reconnect
+      for (let i = pendingMessages.length - 1; i >= 0; i--) {
+        const m = pendingMessages[i];
+        if (m && m.type === "SUBSCRIBE" && getSubscriptionKey(m) === key) {
+          pendingMessages.splice(i, 1);
+        }
       }
     }
   } else {

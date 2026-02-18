@@ -108,7 +108,6 @@ async function dispatchSubscriptionUpdates() {
       .select()
       .from(usage)
       .where(inArray(usage.sessionId, sessionIds))
-      .groupBy(usage.sessionId)
       .orderBy(desc(usage.timestamp)),
   ]);
 
