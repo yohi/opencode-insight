@@ -214,3 +214,7 @@ export function broadcastToTopic(topic: SubscriptionTopic, message: WebSocketMes
 export function hasSubscribers(topic: SubscriptionTopic): boolean {
   return (clientsByTopic.get(topic)?.size ?? 0) > 0;
 }
+
+export function getSubscribedTopics(): SubscriptionTopic[] {
+  return Array.from(clientsByTopic.keys());
+}

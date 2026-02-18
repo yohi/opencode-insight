@@ -8,7 +8,15 @@ async function fetchTables() {
   const response = await fetch("/api/raw-data/tables");
   if (!response.ok) throw new Error("Failed to fetch tables");
   const data = await response.json();
-  return data.tables || [];
+  
+  if (Array.isArray(data)) {
+    return data.map((item: any) => (typeof item === 'string' ? item : item.name));
+  }
+  if (data.tables && Array.isArray(data.tables)) {
+    return data.tables.map((item: any) => (typeof item === 'string' ? item : item.name));
+  }
+  
+  throw new Error("Invalid response format for tables");
 }
 
 async function runReadonlyQuery(query: string) {
@@ -106,7 +114,8 @@ export default function RawDataViewer() {
 
   const onTableClick = (tableName: string) => {
     setSelectedTable(tableName);
-    const sql = `SELECT * FROM ${tableName} LIMIT 100`;
+    const escapedTableName = `"${tableName.replace(/"/g, '""')}"`;
+    const sql = `SELECT * FROM ${escapedTableName} LIMIT 100`;
     handleRunQuery(sql);
   };
 

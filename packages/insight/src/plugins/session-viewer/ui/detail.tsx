@@ -4,29 +4,7 @@ import { Badge } from "~/ui/badge";
 import { store, setStore, sendWebSocketMessage } from "~/core/store";
 import { SolidMarkdown } from "solid-markdown";
 import type { Message, SessionWithDetails, Usage } from "~/core/types";
-
-// Helper to handle inconsistent timestamps
-function normalizeTimestampToMs(value: string | number | Date | null | undefined): number {
-  if (!value) return 0;
-  if (value instanceof Date) return value.getTime();
-  
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (trimmed === "") return 0;
-
-    const num = Number(trimmed);
-    if (!isNaN(num)) {
-      // Heuristic: less than 10 billion -> seconds, else milliseconds
-      return num < 10000000000 ? num * 1000 : num;
-    }
-    const parsed = new Date(value).getTime();
-    if (isNaN(parsed)) return 0;
-    return parsed;
-  }
-  
-  // Number
-  return value < 10000000000 ? value * 1000 : value;
-}
+import { mergeMessages, normalizeTimestampToMs } from "~/core/utils";
 
 async function fetchSessionDetails(id: string) {
   if (!id) throw new Error("Invalid session ID");
@@ -45,21 +23,7 @@ async function fetchSessionDetails(id: string) {
       const existing = (prev?.messages || []) as Message[];
       const incoming = (data.messages || []) as Message[];
       
-      // Create a new merged array to avoid mutating existing state
-      const merged = [...existing];
-      const existingIds = new Set(existing.map(m => m.id));
-
-      incoming.forEach(m => {
-        if (!existingIds.has(m.id)) {
-          merged.push(m);
-          existingIds.add(m.id);
-        }
-      });
-
-      // Sort by timestamp
-      merged.sort((a, b) => {
-        return normalizeTimestampToMs(a.timestamp) - normalizeTimestampToMs(b.timestamp);
-      });
+      const merged = mergeMessages(existing, incoming);
 
       return {
         ...(prev || {}),
@@ -68,7 +32,7 @@ async function fetchSessionDetails(id: string) {
       };
     });
 
-    return data;
+    return store.sessions[id];
   } catch (err) {
     console.error("Error fetching session details:", err);
     throw err;
@@ -166,7 +130,7 @@ export default function SessionDetail() {
                   {session()?.status || "unknown"}
                 </Badge>
                 
-                <Show when={session()?.usage}>
+                <Show when={session()?.usage} keyed>
                   {(u: Usage) => (
                     <Badge variant="default" class="font-mono">
                       {u.totalTokens?.toLocaleString() ?? 0} tokens
@@ -177,7 +141,7 @@ export default function SessionDetail() {
             </div>
 
             {/* Usage Stats Detail */}
-            <Show when={session()?.usage}>
+            <Show when={session()?.usage} keyed>
                {(u: Usage) => (
                  <div class="mt-3 flex gap-6 text-xs text-neutral-500 border-t border-neutral-100 dark:border-neutral-800 pt-2">
                    <div class="flex items-center gap-1">

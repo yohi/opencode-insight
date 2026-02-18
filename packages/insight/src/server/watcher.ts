@@ -2,9 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { readonlyDb as db } from "../core/db";
 import { message, session, usage } from "../core/schema";
-import { broadcast, hasSubscribers } from "./ws";
-import { asc, desc, eq } from "drizzle-orm";
-import type { SessionWithDetails } from "../core/types";
+import { broadcastToTopic, hasSubscribers, getSubscribedTopics } from "./ws";
+import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import type { SessionWithDetails, SubscriptionTopic } from "../core/types";
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 const DEBOUNCE_MS = 200;
@@ -79,10 +79,64 @@ async function fetchSessionDetails(sessionIds: string[]): Promise<(SessionWithDe
 }
 
 async function dispatchSubscriptionUpdates() {
-  const sessions = await fetchSessionList();
-  const sessionIds = sessions.map((s) => s.id);
+  // Optimization: Only fetch details for sessions that actually have subscribers
+  // We first identify which sessions are being watched by clients.
+  const subscribedTopics = getSubscribedTopics();
+  const subscribedSessionIds = subscribedTopics
+    .filter((topic) => topic.startsWith("session:"))
+    .map((topic) => topic.replace("session:", ""));
+
+  if (subscribedSessionIds.length === 0) {
+    sessionStateCache.clear();
+    return;
+  }
+
+  // Fetch full details for all subscribed sessions
+  // This replaces the previous logic where we only fetched the latest 20 sessions via fetchSessionList()
+  const sessionIds = subscribedSessionIds;
+
+  // Optimized fetching: Batch queries instead of N+1
+  const [sessionsWithSubscribers, allMessages, allUsages] = await Promise.all([
+    db.select().from(session).where(inArray(session.id, sessionIds)),
+    db.select().from(message).where(inArray(message.sessionId, sessionIds)).orderBy(asc(message.timestamp)),
+    db
+      .select()
+      .from(usage)
+      .where(inArray(usage.sessionId, sessionIds))
+      .orderBy(desc(usage.timestamp)),
+  ]);
+
+  // Group by session ID
+  const messagesBySession = new Map<string, typeof allMessages>();
+  for (const msg of allMessages) {
+    if (!messagesBySession.has(msg.sessionId)) {
+      messagesBySession.set(msg.sessionId, []);
+    }
+    messagesBySession.get(msg.sessionId)!.push(msg);
+  }
+
+  const usageBySession = new Map<string, typeof allUsages[0]>();
+  for (const usg of allUsages) {
+    // Since ordered by desc timestamp, the first one we see is the latest
+    if (!usageBySession.has(usg.sessionId)) {
+      usageBySession.set(usg.sessionId, usg);
+    }
+  }
+
+  const allDetails = new Map<string, SessionWithDetails>();
+  for (const s of sessionsWithSubscribers) {
+    allDetails.set(s.id, {
+      ...s,
+      messages: messagesBySession.get(s.id) || [],
+      usage: usageBySession.get(s.id) || undefined
+    } as SessionWithDetails);
+  }
 
   // Clean up stale cache keys
+  // We strictly synchronize the cache with currently active subscriptions (activeSessionIds derived from sessionIds).
+  // If a session has no subscribers, we remove its state from sessionStateCache to prevent memory leaks.
+  // Trade-off: If a client re-subscribes to a session later, it will result in a cache miss,
+  // potentially skipping the initial change detection optimization, but ensuring data consistency.
   const activeSessionIds = new Set(sessionIds);
   for (const cachedId of sessionStateCache.keys()) {
     if (!activeSessionIds.has(cachedId)) {
@@ -90,14 +144,10 @@ async function dispatchSubscriptionUpdates() {
     }
   }
 
-  for (const s of sessions) {
-    const topic = `session:${s.id}`;
-    if (!hasSubscribers(topic)) {
-      continue;
-    }
+  for (const s of sessionsWithSubscribers) {
+    const topic = `session:${s.id}` as SubscriptionTopic;
 
-    const details = await fetchSessionDetails([s.id]);
-    const detail = details[0];
+    const detail = allDetails.get(s.id);
 
     if (!detail) {
       continue;
@@ -133,17 +183,12 @@ async function dispatchSubscriptionUpdates() {
     // Send only recent slice to reduce payload size
     const recentMessages = detail.messages.slice(-MAX_RECENT_MESSAGES);
 
-    broadcast(
-      {
-        type: "UPDATE_SESSION",
-        sessionId: s.id,
-        data: recentMessages,
-        usage: detail.usage,
-      },
-      (topics) => {
-        return topics.has(topic);
-      }
-    );
+    broadcastToTopic(topic, {
+      type: "UPDATE_SESSION",
+      sessionId: s.id,
+      data: recentMessages,
+      usage: detail.usage,
+    });
   }
 }
 
