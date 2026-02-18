@@ -174,7 +174,14 @@ export function sendWebSocketMessage(message: OutboundWebSocketMessage) {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
     } else {
-      pendingMessages.push(message);
+      const isActive = activeSubscriptions.has(key);
+      const isPending = pendingMessages.some(
+        (m) =>
+          m.type === "SUBSCRIBE" && getSubscriptionKey(m) === key
+      );
+      if (!isActive && !isPending) {
+        pendingMessages.push(message);
+      }
     }
   } else if (message.type === "UNSUBSCRIBE") {
     const key = getSubscriptionKey(message);
@@ -182,8 +189,16 @@ export function sendWebSocketMessage(message: OutboundWebSocketMessage) {
 
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
+    } else {
+      // Remove any pending SUBSCRIBE messages for this key so we don't send stale subscribes on reconnect
+      const pendingIndex = pendingMessages.findIndex(
+        (m) =>
+          m.type === "SUBSCRIBE" && getSubscriptionKey(m) === key
+      );
+      if (pendingIndex !== -1) {
+        pendingMessages.splice(pendingIndex, 1);
+      }
     }
-    // No need to queue unsubscribe if disconnected
   } else {
     // Other messages
     if (ws && ws.readyState === WebSocket.OPEN) {

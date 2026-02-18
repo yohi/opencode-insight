@@ -3,7 +3,7 @@ import path from "node:path";
 import { readonlyDb as db } from "../core/db";
 import { message, session, usage } from "../core/schema";
 import { broadcastToTopic, hasSubscribers } from "./ws";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { SessionWithDetails } from "../core/types";
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -96,12 +96,20 @@ async function dispatchSubscriptionUpdates() {
   );
 
   const sessionIds = sessionsWithSubscribers.map((s) => s.id);
-  if (sessionIds.length === 0) return;
+  if (sessionIds.length === 0) {
+    sessionStateCache.clear();
+    return;
+  }
 
   // Optimized fetching: Batch queries instead of N+1
   const [allMessages, allUsages] = await Promise.all([
     db.select().from(message).where(inArray(message.sessionId, sessionIds)).orderBy(asc(message.timestamp)),
-    db.select().from(usage).where(inArray(usage.sessionId, sessionIds)).orderBy(desc(usage.timestamp)) // We'll filter later
+    db
+      .select()
+      .from(usage)
+      .where(inArray(usage.sessionId, sessionIds))
+      .groupBy(usage.sessionId)
+      .orderBy(desc(usage.timestamp)),
   ]);
 
   // Group by session ID
@@ -142,11 +150,8 @@ async function dispatchSubscriptionUpdates() {
     }
   }
 
-  for (const s of sessions) {
+  for (const s of sessionsWithSubscribers) {
     const topic = `session:${s.id}`;
-    if (!hasSubscribers(topic)) {
-      continue;
-    }
 
     const detail = allDetails.get(s.id);
 

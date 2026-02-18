@@ -77,17 +77,14 @@ function normalizeReadonlyQuery(query: string): string {
   let inBacktick = false;
   let inBracket = false;
   let sanitized = "";
-  let hasTopLevelSemicolon = false;
+  let topLevelSemicolonCount = 0;
+  let lastTopLevelSemicolonIndex = -1;
 
   for (let i = 0; i < cleaned.length; i++) {
     const char = cleaned[i];
 
     // Handle escapes (naive but effective for this validation)
-    if (cleaned[i] === '\\') {
-      sanitized += "  ";
-      i++; // Skip next char
-      continue;
-    }
+
 
     if (inSingle) {
       if (char === "'") inSingle = false;
@@ -106,14 +103,22 @@ function normalizeReadonlyQuery(query: string): string {
       else if (char === '"') inDouble = true;
       else if (char === "`") inBacktick = true;
       else if (char === "[") inBracket = true;
-      else if (char === ";") hasTopLevelSemicolon = true;
+      else if (char === ";") {
+        topLevelSemicolonCount++;
+        lastTopLevelSemicolonIndex = i;
+      }
 
       sanitized += char;
     }
   }
 
-  if (hasTopLevelSemicolon) {
+  if (topLevelSemicolonCount > 1) {
     throw new ValidationError("Multiple statements are not allowed.");
+  }
+  if (topLevelSemicolonCount === 1) {
+    if (cleaned.slice(lastTopLevelSemicolonIndex + 1).trim() !== "") {
+      throw new ValidationError("Multiple statements are not allowed.");
+    }
   }
 
   if (hasForbiddenKeyword(sanitized)) {
@@ -121,7 +126,7 @@ function normalizeReadonlyQuery(query: string): string {
   }
 
   const limitMatches = [
-    ...cleaned.matchAll(/\blimit\s+(?:(\d+)\s*,\s*(\d+)|(\d+)(?:\s+offset\s+(\d+))?)\b/gi),
+    ...sanitized.matchAll(/\blimit\s+(?:(\d+)\s*,\s*(\d+)|(\d+)(?:\s+offset\s+(\d+))?)\b/gi),
   ];
   if (limitMatches.length === 0) {
     return `${cleaned} LIMIT 100`;
@@ -135,7 +140,7 @@ function normalizeReadonlyQuery(query: string): string {
 
   const limitRaw = limitComma ?? limitSimpleOrOffset;
   const limit = Number.parseInt(limitRaw ?? "", 10);
-  if (!Number.isFinite(limit)) {
+  if (!Number.isFinite(limit) || limit < 0) {
     throw new ValidationError("Invalid LIMIT value.");
   }
 
