@@ -144,7 +144,7 @@ function normalizeReadonlyQuery(query: string): string {
 
   const limitRaw = limitComma ?? limitSimpleOrOffset;
   const limit = Number.parseInt(limitRaw ?? "", 10);
-  if (!Number.isFinite(limit) || limit < 0) {
+  if (!Number.isFinite(limit)) {
     throw new ValidationError("Invalid LIMIT value.");
   }
 

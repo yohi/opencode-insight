@@ -2,9 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { readonlyDb as db } from "../core/db";
 import { message, session, usage } from "../core/schema";
-import { broadcastToTopic, hasSubscribers } from "./ws";
+import { broadcastToTopic, hasSubscribers, getSubscribedTopics } from "./ws";
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
-import type { SessionWithDetails } from "../core/types";
+import type { SessionWithDetails, SubscriptionTopic } from "../core/types";
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 const DEBOUNCE_MS = 200;
@@ -79,30 +79,25 @@ async function fetchSessionDetails(sessionIds: string[]): Promise<(SessionWithDe
 }
 
 async function dispatchSubscriptionUpdates() {
-  const sessions = await fetchSessionList();
+  // Optimization: Only fetch details for sessions that actually have subscribers
+  // We first identify which sessions are being watched by clients.
+  const subscribedTopics = getSubscribedTopics();
+  const subscribedSessionIds = subscribedTopics
+    .filter((topic) => topic.startsWith("session:"))
+    .map((topic) => topic.replace("session:", ""));
 
-  // Optimization: Only fetch details for sessions that actually need updates or have subscribers
-  // For now, since we broadcast everything, we fetch everything, but we do it in one batch.
-  // The fetchSessionDetails function already handles batching via Promise.allSettled.
-  // However, the issue raised was about sequential DB calls inside the loop.
-  // Wait, looking at the code, fetchSessionDetails(sessionIds) is called ONCE with ALL IDs.
-  // The implementation of fetchSessionDetails does use Promise.allSettled, which runs in parallel.
-  // But inside Promise.allSettled, it runs 3 queries per session.
-  // To optimize further, we should use `inArray` queries to fetch all messages and usages for all sessions at once.
-
-  // Filter sessions that actually have subscribers to avoid over-fetching
-  const sessionsWithSubscribers = sessions.filter((s) =>
-    hasSubscribers(`session:${s.id}`)
-  );
-
-  const sessionIds = sessionsWithSubscribers.map((s) => s.id);
-  if (sessionIds.length === 0) {
+  if (subscribedSessionIds.length === 0) {
     sessionStateCache.clear();
     return;
   }
 
+  // Fetch full details for all subscribed sessions
+  // This replaces the previous logic where we only fetched the latest 20 sessions via fetchSessionList()
+  const sessionIds = subscribedSessionIds;
+
   // Optimized fetching: Batch queries instead of N+1
-  const [allMessages, allUsages] = await Promise.all([
+  const [sessionsWithSubscribers, allMessages, allUsages] = await Promise.all([
+    db.select().from(session).where(inArray(session.id, sessionIds)),
     db.select().from(message).where(inArray(message.sessionId, sessionIds)).orderBy(asc(message.timestamp)),
     db
       .select()
@@ -150,7 +145,7 @@ async function dispatchSubscriptionUpdates() {
   }
 
   for (const s of sessionsWithSubscribers) {
-    const topic = `session:${s.id}`;
+    const topic = `session:${s.id}` as SubscriptionTopic;
 
     const detail = allDetails.get(s.id);
 
