@@ -11,7 +11,7 @@ export function expandHome(filepath: string): string {
     return filepath;
 }
 
-export const CONFIG_SEARCH_PATHS = [
+export const CONFIG_SEARCH_PATHS: (string | undefined)[] = [
     process.env.OPENCODE_CONFIG_PATH,
     path.join(process.cwd(), "opencode.jsonc"),
     "~/.config/opencode/opencode.jsonc",

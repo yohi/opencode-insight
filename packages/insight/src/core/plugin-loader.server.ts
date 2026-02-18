@@ -131,7 +131,13 @@ export async function discoverExternalPlugins(): Promise<string[]> {
 
     return Array.from(new Set(pluginNames));
   } catch (error) {
-    // Handle package.json missing or parse error gracefully
+    // Handle package.json missing gracefully
+    if ((error as { code?: string }).code === "ENOENT") {
+      return [];
+    }
+
+    // unexpected errors should be logged
+    console.warn(`[PluginLoader] Error reading/parsing package.json at ${path.join(process.cwd(), "package.json")}:`, error);
     return [];
   }
 }

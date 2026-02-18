@@ -1,6 +1,6 @@
 import { json } from "solid-start/api";
 import fs from "node:fs/promises";
-import { existsSync } from "node:fs";
+
 import type { APIContext } from "~/core/plugin";
 import { expandHome, CONFIG_SEARCH_PATHS } from "~/core/path-utils";
 
