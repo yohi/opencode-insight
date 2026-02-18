@@ -133,7 +133,11 @@ function normalizeReadonlyQuery(query: string): string {
     if (/\blimit\b/i.test(sanitized)) {
       throw new ValidationError("Invalid LIMIT value.");
     }
-    return `${cleaned} LIMIT 100`;
+
+    const baseQuery =
+      topLevelSemicolonCount === 1 ? cleaned.slice(0, lastTopLevelSemicolonIndex) : cleaned;
+
+    return `${baseQuery} LIMIT 100`;
   }
 
   const lastMatch = limitMatches[limitMatches.length - 1]!;
