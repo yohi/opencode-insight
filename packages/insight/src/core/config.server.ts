@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
-import path from "node:path";
-import os from "node:os";
+import { expandHome, CONFIG_SEARCH_PATHS } from "./path-utils";
+import { parse } from "jsonc-parser";
 
 export interface InsightConfig {
   plugins: {
@@ -17,45 +17,21 @@ const DEFAULT_CONFIG: InsightConfig = {
   },
 };
 
-/**
- * Resolves ~ to home directory
- */
-function expandHome(filepath: string): string {
-  if (filepath.startsWith("~")) {
-    return path.join(os.homedir(), filepath.slice(1));
-  }
-  return filepath;
-}
-
-/**
- * Strips comments from jsonc content
- */
-function stripComments(content: string): string {
-  return content.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, "$1");
-}
-
 export async function loadConfig(): Promise<InsightConfig> {
-  const searchPaths = [
-    process.env.OPENCODE_CONFIG_PATH,
-    path.join(process.cwd(), "opencode.jsonc"),
-    "~/.config/opencode/opencode.jsonc",
-  ];
-
-  for (const rawPath of searchPaths) {
+  for (const rawPath of CONFIG_SEARCH_PATHS) {
     if (!rawPath) continue;
     const configPath = expandHome(rawPath);
 
     if (existsSync(configPath)) {
       try {
         const rawContent = await fs.readFile(configPath, "utf-8");
-        const cleanContent = stripComments(rawContent);
-        const parsed = JSON.parse(cleanContent);
+        const parsed = parse(rawContent);
 
         // Merge with defaults to ensure structure
         return {
           plugins: {
-            enabled: Array.isArray(parsed.plugins?.enabled) ? parsed.plugins.enabled : [],
-            disabled: Array.isArray(parsed.plugins?.disabled) ? parsed.plugins.disabled : [],
+            enabled: Array.isArray(parsed?.plugins?.enabled) ? parsed.plugins.enabled : [],
+            disabled: Array.isArray(parsed?.plugins?.disabled) ? parsed.plugins.disabled : [],
           },
         };
       } catch (err) {

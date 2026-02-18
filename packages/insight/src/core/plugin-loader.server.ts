@@ -8,36 +8,7 @@ type PluginModule = { default: InsightPlugin };
 
 let cachedPlugins: InsightPlugin[] | null = null;
 
-function waitForPromise<T>(promise: Promise<T>): T {
-  const signal = new Int32Array(new SharedArrayBuffer(4));
-  let resolved = false;
-  let value: T | undefined;
-  let error: unknown;
-
-  promise
-    .then((result) => {
-      value = result;
-      resolved = true;
-      Atomics.store(signal, 0, 1);
-      Atomics.notify(signal, 0, 1);
-    })
-    .catch((err) => {
-      error = err;
-      resolved = true;
-      Atomics.store(signal, 0, 1);
-      Atomics.notify(signal, 0, 1);
-    });
-
-  while (!resolved) {
-    Atomics.wait(signal, 0, 0, 50);
-  }
-
-  if (error) {
-    throw error;
-  }
-
-  return value as T;
-}
+// waitForPromise removed
 
 function getPluginExport(module: unknown): unknown {
   if (module && typeof module === "object" && "default" in module) {
@@ -117,7 +88,7 @@ async function loadExternalPlugins(localPlugins: InsightPlugin[]): Promise<Insig
   return externalPlugins;
 }
 
-export function loadPlugins(): InsightPlugin[] {
+export async function loadPlugins(): Promise<InsightPlugin[]> {
   if (cachedPlugins) {
     return cachedPlugins;
   }
@@ -128,7 +99,7 @@ export function loadPlugins(): InsightPlugin[] {
     .filter(Boolean);
 
   try {
-    const externalPlugins = waitForPromise(loadExternalPlugins(localPlugins));
+    const externalPlugins = await loadExternalPlugins(localPlugins);
     cachedPlugins = [...localPlugins, ...externalPlugins];
   } catch (error) {
     console.error("[PluginLoader] Failed to load external plugins, using local plugins only", error);

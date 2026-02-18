@@ -68,6 +68,7 @@ Implement Phase 3 features: Extensibility & External Plugin Loading.
 - **Method**: Unit tests for discovery/validation logic. Integration test by mocking `package.json` reading.
 
 ### QA Policy
+
 | Deliverable Type | Verification Tool | Method |
 |------------------|-------------------|--------|
 | Plugin Discovery | `bun test` | Mock `package.json` and verify parser output. |
@@ -80,7 +81,7 @@ Implement Phase 3 features: Extensibility & External Plugin Loading.
 
 ### Parallel Execution Waves
 
-```
+```text
 Wave 1 (Core Logic):
 ├── Task 1: Config Loader Implementation [quick]
 ├── Task 2: Plugin Discovery Logic [quick]
@@ -127,7 +128,8 @@ Wave FINAL (Verification):
   **Parallelization**:
   - **Group**: Wave 1
 
-- [ ] 4. **Dynamic Import Implementation (Server)**
+- [x] 4. **Dynamic Import Implementation (Server)**
+  > Implemented: `loadPlugins()` in `plugin-loader.server.ts`, supporting async import and `opencode.jsonc` filtering.
 
   **What to do**:
   - Modify `packages/insight/src/core/plugin-loader.server.ts`.
@@ -148,7 +150,8 @@ Wave FINAL (Verification):
   - **Group**: Wave 2
   - **Depends On**: Task 1, 2, 3
 
-- [ ] 5. **Vite Config Updates**
+- [x] 5. **Vite Config Updates**
+  > Implemented: `ssr: { noExternal: [...] }` in `vite.config.ts`.
 
   **What to do**:
   - Modify `packages/insight/vite.config.ts`.

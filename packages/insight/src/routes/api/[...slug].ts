@@ -46,13 +46,13 @@ function matchPattern(pattern: string, path: string): Record<string, string> | n
   return params;
 }
 
-function resolveHandler(slug: string): MatchResult | null {
+async function resolveHandler(slug: string): Promise<MatchResult | null> {
   const path = normalizePath(slug);
   if (!path) {
     return null;
   }
 
-  const plugins = loadPlugins();
+  const plugins = await loadPlugins();
 
   // First pass: exact match.
   for (const plugin of plugins) {
@@ -99,7 +99,7 @@ function resolveHandler(slug: string): MatchResult | null {
 
 async function dispatch(event: APIEvent): Promise<Response> {
   const slug = event.params.slug ?? "";
-  const resolved = resolveHandler(slug);
+  const resolved = await resolveHandler(slug);
   if (!resolved) {
     return json({ error: "Not Found" }, { status: 404 });
   }
