@@ -1,7 +1,7 @@
-import { createResource, For, Show, createSignal, onMount } from "solid-js";
+import { createResource, For, Show, createSignal, onMount, createEffect, onCleanup } from "solid-js";
 import { useParams } from "solid-start";
 import { Badge } from "~/ui/badge";
-import { store, setStore } from "~/core/store";
+import { store, setStore, sendWebSocketMessage } from "~/core/store";
 import { SolidMarkdown } from "solid-markdown";
 import type { Message, SessionWithDetails, Usage } from "~/core/types";
 import { mergeMessages, normalizeTimestampToMs } from "~/core/utils";
@@ -45,6 +45,25 @@ export default function SessionDetail() {
 
   onMount(() => {
     setIsMounted(true);
+  });
+
+  createEffect(() => {
+    const id = params.id;
+    if (id) {
+      const topic = `session:${id}` as const;
+      
+      sendWebSocketMessage({
+        type: "SUBSCRIBE",
+        topic,
+      });
+
+      onCleanup(() => {
+        sendWebSocketMessage({
+          type: "UNSUBSCRIBE",
+          topic,
+        });
+      });
+    }
   });
 
   const [resource] = createResource(

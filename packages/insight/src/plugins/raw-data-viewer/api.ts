@@ -49,10 +49,19 @@ function isQueryPath(pathname: string): boolean {
   return pathname.endsWith("/api/raw-data/query") || pathname.endsWith("/api/sql");
 }
 
+/**
+ * Normalizes a query to ensure it is read-only and limited.
+ *
+ * WARNING: This function does NOT protect against SQL injection via table/column identifiers.
+ * It assumes that table/column names have been validated or escaped by the caller.
+ * It strictly enforces SELECT-only queries and LIMIT constraints.
+ *
+ * @param query The raw SQL query string.
+ * @returns The normalized safe query string.
+ * @throws ValidationError if the query contains forbidden keywords or patterns.
+ */
 function normalizeReadonlyQuery(query: string): string {
-  if (containsSqlComment(query)) {
-    throw new ValidationError("SQL comments are not allowed.");
-  }
+
 
   const cleaned = query.trim();
 
@@ -60,19 +69,75 @@ function normalizeReadonlyQuery(query: string): string {
     throw new ValidationError("Only SELECT queries are allowed.");
   }
 
-  if (cleaned.includes(";")) {
-    throw new ValidationError("Multiple statements are not allowed.");
+  // Scanner to handle quotes and check for top-level semicolons
+  let inSingle = false;
+  let inDouble = false;
+  let inBacktick = false;
+  let inBracket = false;
+  let sanitized = "";
+  let topLevelSemicolonCount = 0;
+  let lastTopLevelSemicolonIndex = -1;
+
+  for (let i = 0; i < cleaned.length; i++) {
+    const char = cleaned[i];
+
+
+    if (inSingle) {
+      if (char === "'") inSingle = false;
+      sanitized += " ";
+    } else if (inDouble) {
+      if (char === '"') inDouble = false;
+      sanitized += " ";
+    } else if (inBacktick) {
+      if (char === "`") inBacktick = false;
+      sanitized += " ";
+    } else if (inBracket) {
+      if (char === "]") inBracket = false;
+      sanitized += " ";
+    } else {
+      if (char === "'") inSingle = true;
+      else if (char === '"') inDouble = true;
+      else if (char === "`") inBacktick = true;
+      else if (char === "[") inBracket = true;
+      else if (char === ";") {
+        topLevelSemicolonCount++;
+        lastTopLevelSemicolonIndex = i;
+      }
+
+      sanitized += char;
+    }
   }
 
-  if (hasForbiddenKeyword(cleaned)) {
+  if (topLevelSemicolonCount > 1) {
+    throw new ValidationError("Multiple statements are not allowed.");
+  }
+  if (topLevelSemicolonCount === 1) {
+    if (cleaned.slice(lastTopLevelSemicolonIndex + 1).trim() !== "") {
+      throw new ValidationError("Multiple statements are not allowed.");
+    }
+  }
+
+  if (containsSqlComment(sanitized)) {
+    throw new ValidationError("SQL comments are not allowed.");
+  }
+
+  if (hasForbiddenKeyword(sanitized)) {
     throw new ValidationError("Write operations are not allowed.");
   }
 
   const limitMatches = [
-    ...cleaned.matchAll(/\blimit\s+(?:(\d+)\s*,\s*(\d+)|(\d+)(?:\s+offset\s+(\d+))?)\b/gi),
+    ...sanitized.matchAll(/\blimit\s+(?:(\d+)\s*,\s*(\d+)|(\d+)(?:\s+offset\s+(\d+))?)\b/gi),
   ];
   if (limitMatches.length === 0) {
-    return `${cleaned} LIMIT 100`;
+    // If "LIMIT" keyword exists but didn't match the strict regex (e.g. negative numbers or syntax error), reject it.
+    if (/\blimit\b/i.test(sanitized)) {
+      throw new ValidationError("Invalid LIMIT value.");
+    }
+
+    const baseQuery =
+      topLevelSemicolonCount === 1 ? cleaned.slice(0, lastTopLevelSemicolonIndex) : cleaned;
+
+    return `${baseQuery} LIMIT 100`;
   }
 
   const lastMatch = limitMatches[limitMatches.length - 1]!;

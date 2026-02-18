@@ -1,5 +1,5 @@
 import { createStore } from "solid-js/store";
-import type { SessionWithDetails, Agent, WebSocketMessage } from "./types";
+import type { SessionWithDetails, Agent, WebSocketMessage, Message } from "./types";
 import { mergeMessages } from "./utils";
 
 type OutboundWebSocketMessage = Extract<WebSocketMessage, { type: "SUBSCRIBE" | "UNSUBSCRIBE" }>;
@@ -14,6 +14,17 @@ export const [store, setStore] = createStore({
 
 let ws: WebSocket | null = null;
 const pendingMessages: OutboundWebSocketMessage[] = [];
+const activeSubscriptions = new Map<string, OutboundWebSocketMessage>();
+
+function getSubscriptionKey(msg: OutboundWebSocketMessage): string {
+  // Use a stable key for subscription tracking: sessionId or topic.
+  // SUBSCRIBE and UNSUBSCRIBE produce the same key by omitting the message type.
+  const base = {
+    ...("sessionId" in msg ? { sessionId: msg.sessionId } : {}),
+    ...("topic" in msg ? { topic: msg.topic } : {})
+  };
+  return JSON.stringify(base);
+}
 
 // Helper to parse logs and update agent state
 function updateAgentStateFromLog(log: string) {
@@ -70,7 +81,7 @@ function handleMessage(data: WebSocketMessage) {
         const current = prev || { id: data.sessionId } as SessionWithDetails;
         const incomingMessages = data.data || [];
         const existingMessages = current.messages || [];
-        
+
         return {
           ...current,
           messages: mergeMessages(existingMessages, incomingMessages),
@@ -101,7 +112,19 @@ export function connectWebSocket() {
 
   ws.onopen = () => {
     setStore("status", "connected");
-    
+
+    // Resubscribe to active topics
+
+    for (const msg of activeSubscriptions.values()) {
+      try {
+        if (msg.type === "SUBSCRIBE" && ws) {
+          ws.send(JSON.stringify(msg));
+        }
+      } catch (e) {
+        console.error("Failed to resubscribe:", e);
+      }
+    }
+
     // Flush pending messages
     while (pendingMessages.length > 0) {
       const msg = pendingMessages.shift();
@@ -143,10 +166,35 @@ export function disconnect() {
 }
 
 export function sendWebSocketMessage(message: OutboundWebSocketMessage) {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(message));
+  // Track subscriptions
+  if (message.type === "SUBSCRIBE") {
+    const key = getSubscriptionKey(message);
+    activeSubscriptions.set(key, message);
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    }
+  } else if (message.type === "UNSUBSCRIBE") {
+    const key = getSubscriptionKey(message);
+    activeSubscriptions.delete(key);
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    } else {
+      // Remove all pending SUBSCRIBE messages for this key so we don't send stale subscribes on reconnect
+      for (let i = pendingMessages.length - 1; i >= 0; i--) {
+        const m = pendingMessages[i];
+        if (m && m.type === "SUBSCRIBE" && getSubscriptionKey(m) === key) {
+          pendingMessages.splice(i, 1);
+        }
+      }
+    }
   } else {
-    pendingMessages.push(message);
-    console.warn("WebSocket is not connected. Message queued:", message);
+    // Other messages
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    } else {
+      pendingMessages.push(message);
+    }
   }
 }

@@ -23,7 +23,13 @@ export default function AgentMonitor() {
     }
   });
 
-  const agentsList = createMemo(() => Object.values(store.agents));
+  const agentsList = createMemo(() => {
+    return Object.values(store.agents).sort((a, b) => {
+      // Sort by lastActive descending (newest first)
+      return (b.lastActive || 0) - (a.lastActive || 0);
+    });
+  });
+
 
   const statusIcons = {
     thinking: { icon: "thinking", label: "Thinking...", color: "text-purple-600" },
@@ -34,26 +40,29 @@ export default function AgentMonitor() {
 
   const getStatusColor = (status: Agent["status"]) => {
     switch (status) {
-      case "busy": return "bg-blue-100 text-blue-800 border-blue-200";
-      case "thinking": return "bg-purple-100 text-purple-800 border-purple-200";
-      case "error": return "bg-red-100 text-red-800 border-red-200";
-      default: return "bg-gray-100 text-gray-800 border-gray-200";
+      case "busy": return "text-blue-500 bg-blue-50 border-blue-100";
+      case "thinking": return "text-amber-500 bg-amber-50 border-amber-100";
+      case "error": return "text-red-500 bg-red-50 border-red-100";
+      default: return "text-gray-400 bg-gray-50 border-gray-100";
     }
   };
 
+
   return (
-    <div class="space-y-6 h-full flex flex-col p-4">
+    <div class="h-full flex flex-col p-6 space-y-6 bg-gray-50/50">
       {/* Header */}
       <div class="flex justify-between items-center shrink-0">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Agent Monitor</h1>
-          <p class="text-sm text-gray-500">Real-time observation of agent activities</p>
+          <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Agent Monitor</h1>
+          <p class="text-sm text-gray-500">Real-time system observation</p>
         </div>
-        <div class="flex items-center space-x-2">
-            <Badge class={store.status === "connected" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
-                {store.status === "connected" ? "• Live" : "• Disconnected"}
-            </Badge>
-        </div>
+        <Badge class={`px-3 py-1 rounded-full font-medium transition-colors border ${
+            store.status === "connected" 
+                ? "bg-green-50 text-green-700 border-green-200" 
+                : "bg-red-50 text-red-700 border-red-200"
+        }`}>
+            {store.status === "connected" ? "● Connected" : "○ Disconnected"}
+        </Badge>
       </div>
 
       {/* Main Content Grid */}
@@ -137,9 +146,15 @@ export default function AgentMonitor() {
                     }>
                         <For each={store.logs}>
                             {(log, i) => (
-                                <div class="flex gap-2 hover:bg-gray-800/50 rounded px-1">
-                                    <span class="text-gray-600 select-none w-8 text-right shrink-0">{i() + 1}</span>
-                                    <span class="break-all whitespace-pre-wrap">{log}</span>
+                                <div class="flex gap-2 font-mono text-xs hover:bg-white/5 px-1 rounded">
+                                    <span class="text-gray-600 w-6 text-right select-none">{i() + 1}</span>
+                                    <span class={`break-all ${
+                                        log.includes("[ERROR]") ? "text-red-400" :
+                                        log.includes("[WARN]") ? "text-amber-400" :
+                                        "text-gray-300"
+                                    }`}>
+                                        {log}
+                                    </span>
                                 </div>
                             )}
                         </For>
@@ -151,3 +166,4 @@ export default function AgentMonitor() {
     </div>
   );
 }
+

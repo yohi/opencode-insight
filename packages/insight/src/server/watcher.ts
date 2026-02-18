@@ -2,9 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { readonlyDb as db } from "../core/db";
 import { message, session, usage } from "../core/schema";
-import { broadcast } from "./ws";
-import { asc, desc, eq, inArray } from "drizzle-orm";
-import type { SessionWithDetails } from "../core/types";
+import { broadcastToTopic, hasSubscribers, getSubscribedTopics } from "./ws";
+import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import type { SessionWithDetails, SubscriptionTopic } from "../core/types";
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 const DEBOUNCE_MS = 200;
@@ -79,26 +79,31 @@ async function fetchSessionDetails(sessionIds: string[]): Promise<(SessionWithDe
 }
 
 async function dispatchSubscriptionUpdates() {
-  // Spec-aligned: broadcast per-session message updates.
-  // We don't currently track per-session subscriptions; clients can ignore updates they don't care about.
-  const sessions = await fetchSessionList();
-  
-  // Optimization: Only fetch details for sessions that actually need updates or have subscribers
-  // For now, since we broadcast everything, we fetch everything, but we do it in one batch.
-  // The fetchSessionDetails function already handles batching via Promise.allSettled.
-  // However, the issue raised was about sequential DB calls inside the loop.
-  // Wait, looking at the code, fetchSessionDetails(sessionIds) is called ONCE with ALL IDs.
-  // The implementation of fetchSessionDetails does use Promise.allSettled, which runs in parallel.
-  // But inside Promise.allSettled, it runs 3 queries per session.
-  // To optimize further, we should use `inArray` queries to fetch all messages and usages for all sessions at once.
-  
-  const sessionIds = sessions.map((s) => s.id);
-  if (sessionIds.length === 0) return;
+  // Optimization: Only fetch details for sessions that actually have subscribers
+  // We first identify which sessions are being watched by clients.
+  const subscribedTopics = getSubscribedTopics();
+  const subscribedSessionIds = subscribedTopics
+    .filter((topic) => topic.startsWith("session:"))
+    .map((topic) => topic.replace("session:", ""));
+
+  if (subscribedSessionIds.length === 0) {
+    sessionStateCache.clear();
+    return;
+  }
+
+  // Fetch full details for all subscribed sessions
+  // This replaces the previous logic where we only fetched the latest 20 sessions via fetchSessionList()
+  const sessionIds = subscribedSessionIds;
 
   // Optimized fetching: Batch queries instead of N+1
-  const [allMessages, allUsages] = await Promise.all([
+  const [sessionsWithSubscribers, allMessages, allUsages] = await Promise.all([
+    db.select().from(session).where(inArray(session.id, sessionIds)),
     db.select().from(message).where(inArray(message.sessionId, sessionIds)).orderBy(asc(message.timestamp)),
-    db.select().from(usage).where(inArray(usage.sessionId, sessionIds)).orderBy(desc(usage.timestamp)) // We'll filter later
+    db
+      .select()
+      .from(usage)
+      .where(inArray(usage.sessionId, sessionIds))
+      .orderBy(desc(usage.timestamp)),
   ]);
 
   // Group by session ID
@@ -117,14 +122,21 @@ async function dispatchSubscriptionUpdates() {
       usageBySession.set(usg.sessionId, usg);
     }
   }
-  
-  const details = sessions.map(s => ({
-    ...s,
-    messages: messagesBySession.get(s.id) || [],
-    usage: usageBySession.get(s.id) || undefined
-  } as SessionWithDetails));
+
+  const allDetails = new Map<string, SessionWithDetails>();
+  for (const s of sessionsWithSubscribers) {
+    allDetails.set(s.id, {
+      ...s,
+      messages: messagesBySession.get(s.id) || [],
+      usage: usageBySession.get(s.id) || undefined
+    } as SessionWithDetails);
+  }
 
   // Clean up stale cache keys
+  // We strictly synchronize the cache with currently active subscriptions (activeSessionIds derived from sessionIds).
+  // If a session has no subscribers, we remove its state from sessionStateCache to prevent memory leaks.
+  // Trade-off: If a client re-subscribes to a session later, it will result in a cache miss,
+  // potentially skipping the initial change detection optimization, but ensuring data consistency.
   const activeSessionIds = new Set(sessionIds);
   for (const cachedId of sessionStateCache.keys()) {
     if (!activeSessionIds.has(cachedId)) {
@@ -132,9 +144,10 @@ async function dispatchSubscriptionUpdates() {
     }
   }
 
-  for (let i = 0; i < sessions.length; i++) {
-    const s = sessions[i]!;
-    const detail = details[i];
+  for (const s of sessionsWithSubscribers) {
+    const topic = `session:${s.id}` as SubscriptionTopic;
+
+    const detail = allDetails.get(s.id);
 
     if (!detail) {
       continue;
@@ -170,23 +183,12 @@ async function dispatchSubscriptionUpdates() {
     // Send only recent slice to reduce payload size
     const recentMessages = detail.messages.slice(-MAX_RECENT_MESSAGES);
 
-    // TODO: Implement selective broadcasting based on client subscriptions.
-    // Current implementation broadcasts to ALL clients, which is inefficient.
-    // Clients currently have to filter messages themselves.
-    broadcast(
-      {
-        type: "UPDATE_SESSION",
-        sessionId: s.id,
-        data: recentMessages,
-        usage: detail.usage,
-      },
-      (topics) => {
-        // Basic filtering: send only if client is subscribed to "logs" (general)
-        // or if we implement specific session subscription topics in the future.
-        // For now, "logs" implies interest in all session updates as per current spec.
-        return topics.has("logs") || topics.has(`session:${s.id}`);
-      }
-    );
+    broadcastToTopic(topic, {
+      type: "UPDATE_SESSION",
+      sessionId: s.id,
+      data: recentMessages,
+      usage: detail.usage,
+    });
   }
 }
 
